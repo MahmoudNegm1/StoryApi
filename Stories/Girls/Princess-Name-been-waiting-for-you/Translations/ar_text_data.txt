@@ -1,0 +1,475 @@
+
+{
+  "slide_01": [
+    {
+      "html": "<html><head/><body><p style=\"text-align:center;\"><span style=\"color:#4dd0e1;font-size:24px;\"><strong>الأميرة</strong></span><br><br><br><br><span style=\"color:#4dd0e1;font-size:24px;\"><strong>&nbsp;[*الاسم*]&nbsp;</strong></span><br><br><br><span style=\"color:#4dd0e1;font-size:18px;\"><strong>  لقد طال انتظارنا لكى </strong></span></p></body></html>",
+      "global_font": 4.3,
+      "x": 290,
+      "y": -200,
+      "width": 1000,
+      "height": 1000
+    }
+  ],
+
+  "slide_02": [
+    {
+      "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,في صباحٍ هادئ يبتسم فيه الضوء</span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\"><strong>  وقفت الأميرة [*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\"> .على شرفة قصرهاالعاليه</span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,ومن خلفها التلال البعيدة</span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">لمعت الغابةالمسحورة</span></p></body></html>",
+      "global_font": 2.8,
+      "x": 1500,
+      "y": 1050,
+      "width": 1000,
+      "height": 600
+    },
+    {
+      "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,ومع نسمات الهواء اللطيفة</span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\"> .وصلها نداء دافىء </span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\"><strong>  الأميرة [*الاسم*] </strong></span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,نحن في انتظارك</span></p></body></html>",
+      "global_font": 2.8,
+     
+        "x": -400,
+      "y": 480,
+      "width": 1000,
+      "height": 600
+    }
+  ],
+
+  "slide_03": [
+    {
+      "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\"> ,فى غرفتهاالهادئة </span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\"><strong> فتحت الأميرة [*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\"> .صندوقًا خشبيًا محفورًا بالأسرار</span></p></body></html>",
+      "global_font": 2.8,
+      "x": 2550,
+      "y": 900,
+      "width": 600,
+      "height": 800
+    },
+    {
+      "html": "<html><head/><body><p style=\"text-align: right ;\"><span style=\"color:#ffffff;font-size:14px;\"> ,كان بداخله فستان الغابة </span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\"> ,أخضر كلون الحياة </span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">  .يحكي عن حبها للطبيعة</span></p><p style=\"text-align:right ;\"><span style=\"color:#ffffff;font-size:14px;\"> ,وفوقه بهدوء</span></p><p style=\"text-align:right ;\"><span style=\"color:#ffffff;font-size:14px;\"> استقر  مفتاح ذهبي</span></p></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">    .يحمل  ذكرى أول شجاعة</span></p></body></html>",
+      "global_font": 2.8,
+      "x": 1000,
+      "y": 1100,
+      "width": 500,
+      "height": 500
+    }
+  ],
+
+  "slide_04": [
+    {
+      "html": "<html><head/><body><p style=\"text-align: right;\"><span style=\"color:#ffffff;font-size:14px;\">,ظهرت فراشة متوهجة</span></p><p style=\"text-align: right;\"><span style=\"color:#ffffff;font-size:14px;\"><strong> ودارت حول الأميرة [*الاسم*] </strong></span></p><p style=\"text-align: right;\"><span style=\"color:#ffffff;font-size:14px;\">.ثم قادتها في طريق متعرج</span></p></body></html>",
+      "global_font": 2.8,
+      "x": 2200,
+            "y": 180,
+
+      "width": 500,
+      "height": 500
+    },
+    {
+      "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,كلما خطت خطوة</span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,ارتفعت الأشجار حولها</span></p></body></html>",
+      "global_font": 2.8,
+      "x": 2200,
+            "y": 350,
+
+      "width": 400,
+      "height": 500
+    },
+    {
+      "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,وغنت الطيور فوق الأغصان</span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,توقفت الأميرةوأصغت بقلبها</span></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">,فالغابة كانت تحكي</span></p></p><p style=\"text-align:right;\"><span style=\"color:#ffffff;font-size:14px;\">.وهي مستعدة لسماعها</span></p></body></html>",
+      "global_font": 2.8,
+      "x": 1800,
+      "y": 580,
+      "width": 500,
+      "height": 500
+    }
+  ],
+"slide_05": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,عند حدود الغابة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\"><strong>وقفت الأميرة [*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,أمام باب خشبي غامض</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">تغطيه طحالب مضيئة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.وجذور ملتفة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2200,
+    "y": 270,
+    "width": 500,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,لم يكن له مقبض</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">بل بصمة يد لامعة</span></p><p style=\"text-align:right\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,في منتصفه</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 230,
+    "y": 130,
+    "width": 500,
+    "height": 400
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">:وعلى لوحة خشبية كُتب</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">\"لا يعبر هذا الباب</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.إلا من يحمل قلبًا طيبًا وروحًا شجاعة\"</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 230,
+    "y": 1220,
+    "width": 600,
+    "height": 450
+  }
+],
+
+
+"slide_06": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:center;\"><span style=\"color:hsl(0, 0%, 100%);font-size:16px;\"><strong>,الأميرة [*الاسم*]</strong></span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0, 0%, 100%);font-size:18px;\">,إن كنتِ مستعدة لاكتشاف المجهول</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0, 0%, 100%);font-size:18px;\">,ولمساعدة من يحتاجكِ</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0, 0%, 100%);font-size:18px;\">,ولحماية هذا العالم الجميل</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0, 0%, 100%);font-size:18px;\">.ضعي يدكِ هنا</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 400,
+    "y": 200,
+    "width": 900,
+    "height": 600
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:18px;\">.لوّنيها بالأحمر، واضغطيها برفق على الصفحة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:18px;\">.لتكن بصمتكِ وعدًا لحراسة الغابة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 180,
+    "y": 570,
+    "width": 1200,
+    "height": 600
+  }
+],
+
+"slide_07": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%); font-size:14px;\">,بان صوت خافت</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,وانفتح باب الغابة ببطء</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.وانسكب نور ذهبي دافئ على الطريق</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2450,
+    "y": 0,
+    "width": 700,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\"><strong>,دخلت الأميرة [*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.فاحتضنتها الغابة بنسيم لطيف</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 1600,
+    "y": 350,
+    "width": 600,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\"><strong>\",مرحبًا بكِ يا أميرة\"</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.قالت الفراشة المتوهجة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 850,
+    "y": 20,
+    "width": 500,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">\",لقد انتظرناكِ طويلًا</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.فالغابة تحتاج إلى قلبكِ\"</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 450,
+    "y": 180,
+    "width": 500,
+    "height": 500
+  }
+],
+
+"slide_08": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,فجأة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.ظهر ثعلب صغير</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,كان ذيله أسود من أثر الحريق</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,وعيناه تحملان حزنًا</span></p></body></html>",
+    "global_font": 2.8,
+   "x": 2350,
+    "y": 420,
+    "width": 600,
+    "height": 480
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"text-align:right;color:hsl(0, 0%, 100%);font-size:12px;\"><strong>\"هل يمكنكِ مساعدتي؟\"</strong></span></p><span style=\"text-align:right;color:hsl(0, 0%, 100%);font-size:12px;\">.قال بصوت خافت</span></body></html>",
+    "global_font": 2.8,
+  
+     "x": 750,
+    "y": 450,
+    "width": 500,
+    "height": 400
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\"><strong>\"فقدتُ ثقتي بنفسي</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\"><strong>,حين تغير ذيلي\"</strong></span></p></body></html>",
+    "global_font": 2.8,
+    "x": 650,
+    "y": 550,
+    "width": 500,
+    "height": 400
+  }
+],
+
+"slide_09": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:16px;\"><strong>انحنت الأميرة [*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.وابتسمت بحنان</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2200,
+    "y": 420,
+    "width": 500,
+    "height": 480
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">\",قد يتغير الشكل</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.لكن القلب الشجاع لا يتغير</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.دعني أساعدك\"</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 1050,
+    "y": 350,
+    "width": 500,
+    "height": 400
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">وبماء الجدول</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">,ولمسة مليئة بالرحمة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:16px;\"><strong>نظفت الأميرة [*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.ذيل الثعلب</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.فلمع بسحر جديد</span></p></body></html>",
+    "global_font": 2.5,
+    "x": 210,
+    "y": 1100,
+    "width": 500,
+    "height": 400
+  }
+],
+
+"slide_10": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:18px;\"><strong>\",شكرًا لكِ\"</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.قال الثعلب وهو يهز ذيله بسعادة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2200,
+    "y": 105,
+    "width": 600,
+    "height": 1000
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:16px;\"><strong>\",على الرحب والسعة\"</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.قالت الأميرة [*الاسم*]</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 650,
+    "y": -300,
+    "width": 1000,
+    "height": 1000
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">\",تذكّر دائمًا</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.قيمتك في قلبك، لا في شكلك\"</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 800,
+    "y": -150,
+    "width": 800,
+    "height": 1000
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.ثم ناولها ورقة لامعة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 950,
+    "y": 200,
+    "width": 550,
+    "height": 1000
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">\",سترافقكِ في رحلتكِ</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0, 0%, 100%);font-size:14px;\">.فثقي بنفسكِ\"</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 600,
+    "y": 1050,
+    "width": 500,
+    "height": 1000
+  }
+],
+
+"slide_11": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>تابعت الأميرة [*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,سيرها بين الأشجار</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,حتى وصلت إلى ساحة واسعة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.تعوي فيها الذئاب بقلق</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 1600,
+    "y": -70,
+    "width": 700,
+    "height": 1000
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>\"ما الذي حدث؟\"</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.سألتهم بهدوء</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 850,
+    "y": -280,
+    "width": 700,
+    "height": 1000
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">:تقدم أحدهم وقال</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>\",حجر القمر اختفى</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>ومن دونه لا نستطيع</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>.حماية عائلتنا\"</strong></span></p></body></html>",
+    "global_font": 2.8,
+    "x": 650,
+    "y": -80,
+    "width": 600,
+    "height": 1000
+  }
+],
+
+"slide_12": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">بدأ المفتاح الذهبي</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.يشع نورًا أقوى</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">اتبعت الأميرة <strong>[*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.نوره حتى وصلت إلى كهف مظلم</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>\".الشجاعة تعني أن أتابع\"</strong></span></p></body></html>",
+    "global_font": 2.8,
+    "x": 550,
+    "y": 120,
+    "width": 700,
+    "height": 1000
+  }
+],
+
+"slide_13": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,داخل الكهف</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">رأت الأميرة <strong>[*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">حجر القمر</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.مستقرًا في ماء داكن</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 1450,
+    "y": 10,
+    "width": 700,
+    "height": 900
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,مدت يدها بثبات</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">رغم دوران الظلال</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.من حولها</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 450,
+    "y": 265,
+    "width": 800,
+    "height": 1000
+  }
+],
+
+"slide_14": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">ما إن لمست حجر القمر</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.حتى تلاشت الظلال</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">وحملت الأميرة الحجر</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.وأعادته إلى الذئاب</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2000,
+    "y": 220,
+    "width": 500,
+    "height": 900
+  }
+],
+
+"slide_15": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.ارتفعت عواءات الفرح</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>\"!لقد أنقذتِنا\"</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.قالت الذئاب بسعادة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2200,
+    "y": -120,
+    "width": 500,
+    "height": 1000
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">وقدّم قائدهم</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">للأميرة <strong>[*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.سوارًا فضيًا لامعًا</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2100,
+    "y": 1100,
+    "width": 500,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,وضعته على معصمها</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.فلمع كنجوم الليل</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 1100,
+    "y": 93,
+    "width": 500,
+    "height": 600
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">وشعرت بقوة جديدة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.وثقة تنمو داخلها</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 650,
+    "y": 1080,
+    "width": 500,
+    "height": 500
+  }
+],
+
+"slide_16": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,في عمق الغابة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.رأت بابًا بفتحة على شكل ورقة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">وضعت الأميرة <strong>[*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.الورقة اللامعة في مكانها</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2000,
+    "y": 800,
+    "width": 600,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">:وتذكرت الكلمات</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>\".الإيمان بالنفس هو البداية\"</strong></span></p></body></html>",
+    "global_font": 2.8,
+    "x": 780,
+    "y": 1100,
+    "width": 600,
+    "height": 400
+  }
+],
+
+"slide_17": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">انحنت الأميرة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.ونظرت إلى الداخل</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,في غرفة خفية مضيئة</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">كان هناك كتاب سحري</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.ينتظرها على منصة صغيرة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 2200,
+    "y": 275,
+    "width": 500,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.مدت يدها وفتحته بحذر</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">:وتلألأت الصفحة الأولى قائلة</span></p></body></html>",
+    "global_font": 2.8,
+    "x":20,
+    "y": 100,
+    "width": 600,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>\"قلبك هو المفتاح</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>.لكل طريق\"</strong></span></p></body></html>",
+    "global_font": 2.8,
+    "x": 20,
+    "y": 250,
+    "width": 500,
+    "height": 500
+  }
+],
+
+"slide_18": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">اندفع نور ذهبي</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,من الكتاب</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.وأحاط بالأميرة <strong>[*الاسم*]</strong></span></p></body></html>",
+    "global_font": 2.8,
+    "x": 1800,
+    "y": 10,
+    "width": 500,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,تلألأ فستانها</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.وتحوّل إلى رداء من أوراق ونور</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>\",أنتِ الآن حارسة الغابة\"</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.همست الفراشة</span></p></body></html>",
+    "global_font": 2.4,
+    "x": 850,
+    "y": 330,
+    "width": 500,
+    "height": 300
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">:واجتمع الأصدقاء وقالوا</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>\"لقد أعدتِ</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>الشجاعة واللطف</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\"><strong>.والأمل\"</strong></span></p></body></html>",
+    "global_font": 2.5,
+    "x": 50,
+    "y": 600,
+    "width": 500,
+    "height": 400
+  }
+],
+
+"slide_19": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">عادت الأميرة <strong>[*الاسم*]</strong></span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,إلى منزلها</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.والكتاب بين ذراعيها</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">كانت تعلم في قلبها</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,أن هذه ليست النهاية</span></p><p style=\"text-align:right;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.بل بداية مغامرات جديدة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 1950,
+    "y": 350,
+    "width": 500,
+    "height": 500
+  }
+],
+
+"slide_20": [
+  {
+    "html": "<html><head/><body><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">...تستمر الحكاية  </span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">حين تعود الأميرة <strong>[*الاسم*]</strong></span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.حاملة مفتاحها المتوهج</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 500,
+    "y": 100,
+    "width": 600,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,تناديها الغابة من جديد</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">فلا يدخلها</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">إلا أصحاب القلوب الطيبة</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.والأرواح الشجاعة</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 500,
+    "y": 405,
+    "width": 600,
+    "height": 500
+  },
+  {
+    "html": "<html><head/><body><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,ضع بصمتكِ هنا</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">,وأعلني شجاعتكِ</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.لتصبحي حارسة الغابة</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">فالقوة الحقيقية</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">تبدأ دائمًا</span></p><p style=\"text-align:center;\"><span style=\"color:hsl(0,0%,100%);font-size:14px;\">.بالإيمان بالنفس</span></p></body></html>",
+    "global_font": 2.8,
+    "x": 500,
+    "y": 800,
+    "width": 600,
+    "height": 500
+  }
+]
+
+}
