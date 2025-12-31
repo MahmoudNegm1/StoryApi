@@ -15,3 +15,25 @@ env/
 
 # Others
 .DS_Store
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+build/
+dist/
+*.pkg
+
+# Qt / PySide
+*.dll
+*.pyd
+*.pak
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
