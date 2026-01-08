@@ -8,6 +8,7 @@ import sys
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
@@ -43,7 +44,15 @@ app = FastAPI(
     version="1.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+ 
 # --------------------------------
 # Helpers
 # --------------------------------

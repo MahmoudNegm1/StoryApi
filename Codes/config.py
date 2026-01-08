@@ -8,7 +8,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ================== WaveSpeed API Configuration ==================
-WAVESPEED_API_KEY = "45ec4b8a031581b78369f3b80bf4f2eb7a30e2b73efefc67ac91cd1a329f0f8d"
+WAVESPEED_API_KEY = "e758b170c1137009827d17a2d441fae3e178cbe2ed1601c08adbafdc5e3ebd57"
 WAVESPEED_API_URL = "https://api.wavespeed.ai/api/v3/wavespeed-ai/image-head-swap"
 WAVESPEED_OUTPUT_FORMAT = "jpeg"
 WAVESPEED_SYNC_MODE = True
