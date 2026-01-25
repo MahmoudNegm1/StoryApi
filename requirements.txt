@@ -1,4 +1,10 @@
 fastapi
+<<<<<<< HEAD
 uvicorn[standard]
 PySide6
 Pillow
+=======
+uvicorn
+flask
+gunicorn
+>>>>>>> e09a14da9c2b5ba160b4efc1ecc792e4ae26d761
