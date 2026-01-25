@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 🎮 UI Selector Module
-================================================
-واجهة المستخدم والاختيارات التفاعلية
+Interactive CLI selectors for language, gender, story, character, and user name.
 """
 
 import os
@@ -10,157 +9,164 @@ from config import STORIES_FOLDER, CHARACTERS_FOLDER
 
 
 def select_language():
-    """اختيار اللغة"""
-    print("\n" + "="*60)
-    print("🌍 اختر اللغة / Choose Language:")
-    print("="*60)
-    print("1. عربي / Arabic")
-    print("2. إنجليزي / English")
-    
+    """Select UI language (ar/en)."""
+    print("\n" + "=" * 60)
+    print("🌍 Choose Language:")
+    print("=" * 60)
+    print("1) Arabic")
+    print("2) English")
+
     while True:
-        choice = input("\n👉 اختيارك (1 أو 2): ").strip()
-        if choice == '1':
-            return 'ar'
-        elif choice == '2':
-            return 'en'
-        else:
-            print("❌ اختيار غير صحيح! اختر 1 أو 2")
+        choice = input("\nEnter 1 or 2: ").strip()
+        if choice == "1":
+            return "ar"
+        if choice == "2":
+            return "en"
+        print("Invalid choice. Please enter 1 or 2.")
 
 
 def select_gender():
-    """اختيار الجنس"""
-    print("\n" + "="*60)
-    print("👤 اختر الجنس / Choose Gender:")
-    print("="*60)
-    print("1. ولد / Boy")
-    print("2. بنت / Girl")
-    
+    """Select gender (boy/girl) and return (gender_key, gender_folder_name)."""
+    print("\n" + "=" * 60)
+    print("👤 Choose Gender:")
+    print("=" * 60)
+    print("1) Boy")
+    print("2) Girl")
+
     while True:
-        choice = input("\n👉 اختيارك (1 أو 2): ").strip()
-        if choice == '1':
-            return 'boy', 'Boys'
-        elif choice == '2':
-            return 'girl', 'Girls'
-        else:
-            print("❌ اختيار غير صحيح! اختر 1 أو 2")
+        choice = input("\nEnter 1 or 2: ").strip()
+        if choice == "1":
+            return "boy", "Boys"
+        if choice == "2":
+            return "girl", "Girls"
+        print("Invalid choice. Please enter 1 or 2.")
 
 
 def get_available_stories(gender):
-    """الحصول على القصص المتاحة حسب الجنس"""
+    """Return available stories under Stories/Boys or Stories/Girls."""
     if not os.path.isdir(STORIES_FOLDER):
         return []
-    
-    # تحديد المجلد حسب الجنس: Boys أو Girls
-    gender_folder_name = "Boys" if gender == 'boy' else "Girls"
+
+    gender_folder_name = "Boys" if gender == "boy" else "Girls"
     gender_folder_path = os.path.join(STORIES_FOLDER, gender_folder_name)
-    
+
     if not os.path.isdir(gender_folder_path):
         return []
-    
-    # الحصول على جميع المجلدات داخل Boys أو Girls
+
     stories = []
     for item in os.listdir(gender_folder_path):
         story_path = os.path.join(gender_folder_path, item)
         if os.path.isdir(story_path):
             stories.append(item)
-    
-    return stories
+
+    return sorted(stories)
 
 
 def select_story(gender):
-    """اختيار القصة حسب الجنس"""
+    """Select a story folder path based on gender."""
     stories = get_available_stories(gender)
-    
     if not stories:
-        gender_ar = "الأولاد" if gender == 'boy' else "البنات"
-        print(f"❌ لا توجد قصص متاحة لـ {gender_ar}!")
+        print("No stories found for this selection.")
         return None
-    
-    gender_ar = "الأولاد" if gender == 'boy' else "البنات"
-    gender_en = "Boys" if gender == 'boy' else "Girls"
-    
-    print("\n" + "="*60)
-    print(f"📚 قصص {gender_ar} المتاحة / Available {gender_en} Stories:")
-    print("="*60)
-    
+
+    gender_folder_name = "Boys" if gender == "boy" else "Girls"
+
+    print("\n" + "=" * 60)
+    print(f"📚 Available Stories ({gender_folder_name}):")
+    print("=" * 60)
+
     for idx, story in enumerate(stories, 1):
-        print(f"{idx}. {story}")
-    
+        print(f"{idx}) {story}")
+
     while True:
+        raw = input(f"\nChoose a story (1-{len(stories)}): ").strip()
         try:
-            choice = int(input(f"\n👉 اختر رقم القصة (1-{len(stories)}): ").strip())
-            if 1 <= choice <= len(stories):
-                selected_story = stories[choice - 1]
-                # المسار الكامل: Stories/Boys أو Girls/اسم القصة
-                gender_folder_name = "Boys" if gender == 'boy' else "Girls"
-                story_path = os.path.join(STORIES_FOLDER, gender_folder_name, selected_story)
-                print(f"✅ تم اختيار: {selected_story}")
-                return story_path
-            else:
-                print(f"❌ اختر رقم بين 1 و {len(stories)}")
+            choice = int(raw)
         except ValueError:
-            print("❌ أدخل رقماً صحيحاً!")
+            print("Invalid input. Please enter a number.")
+            continue
+
+        if 1 <= choice <= len(stories):
+            selected_story = stories[choice - 1]
+            story_path = os.path.join(STORIES_FOLDER, gender_folder_name, selected_story)
+            print(f"Selected: {selected_story}")
+            return story_path
+
+        print(f"Please choose a number between 1 and {len(stories)}.")
 
 
 def show_character_images(gender_folder):
-    """عرض صور الشخصيات المتاحة"""
+    """
+    Select a character image from Characters/{gender_folder}.
+    Returns (cropped_face_path_or_original, character_name).
+    """
     from config import TEMP_CROPPED_FOLDER
     from utils import crop_face_only
-    
+
     char_path = os.path.join(CHARACTERS_FOLDER, gender_folder)
-    
     if not os.path.isdir(char_path):
-        print(f"❌ المجلد '{char_path}' غير موجود!")
+        print(f"Characters folder not found: {char_path}")
         return None, None
-    
-    images = [f for f in os.listdir(char_path) 
-              if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    
+
+    images = [
+        f for f in os.listdir(char_path)
+        if f.lower().endswith((".png", ".jpg", ".jpeg"))
+    ]
+
     if not images:
-        print(f"❌ لا توجد صور في '{char_path}'")
+        print(f"No character images found in: {char_path}")
         return None, None
-    
-    print(f"\n📸 الصور المتاحة في {gender_folder}:")
+
+    images = sorted(images)
+
+    print(f"\n📸 Available Characters ({gender_folder}):")
     for idx, img in enumerate(images, 1):
-        print(f"   {idx}. {img}")
-    
+        print(f"{idx}) {img}")
+
     while True:
+        raw = input(f"\nChoose an image (1-{len(images)}): ").strip()
         try:
-            choice = int(input(f"\n👉 اختر رقم الصورة (1-{len(images)}): ").strip())
-            if 1 <= choice <= len(images):
-                selected_image = images[choice - 1]
-                selected_image_path = os.path.join(char_path, selected_image)
-                character_name = os.path.splitext(selected_image)[0]
-                print(f"✅ تم اختيار: {selected_image}")
-                
-                # قص الوجه تلقائياً
-                print("\n✂️  قص الوجه من الصورة...")
-                os.makedirs(TEMP_CROPPED_FOLDER, exist_ok=True)
-                cropped_image_path = os.path.join(TEMP_CROPPED_FOLDER, f"cropped_{selected_image}")
-                
-                result_path = crop_face_only(selected_image_path, cropped_image_path, padding=2)
-                
-                if result_path:
-                    print(f"✅ تم حفظ الوجه المقصوص في: {cropped_image_path}")
-                    return result_path, character_name
-                else:
-                    print("⚠️  فشل قص الوجه، سيتم استخدام الصورة الأصلية")
-                    return selected_image_path, character_name
-            else:
-                print(f"❌ اختر رقم بين 1 و {len(images)}")
+            choice = int(raw)
         except ValueError:
-            print("❌ أدخل رقماً صحيحاً!")
+            print("Invalid input. Please enter a number.")
+            continue
+
+        if not (1 <= choice <= len(images)):
+            print(f"Please choose a number between 1 and {len(images)}.")
+            continue
+
+        selected_image = images[choice - 1]
+        selected_image_path = os.path.join(char_path, selected_image)
+        character_name = os.path.splitext(selected_image)[0]
+        print(f"Selected: {selected_image}")
+
+        # Auto-crop face (best effort)
+        print("✂️  Cropping face...")
+        os.makedirs(TEMP_CROPPED_FOLDER, exist_ok=True)
+        cropped_image_path = os.path.join(TEMP_CROPPED_FOLDER, f"cropped_{selected_image}")
+
+        try:
+            result_path = crop_face_only(selected_image_path, cropped_image_path, padding=2)
+        except Exception:
+            result_path = None
+
+        if result_path:
+            print(f"Face crop saved: {cropped_image_path}")
+            return result_path, character_name
+
+        print("Face crop failed. Using original image.")
+        return selected_image_path, character_name
 
 
 def get_user_name(language):
-    """طلب اسم المستخدم"""
-    print("\n" + "="*60)
-    name_prompt = "👤 أدخل اسم البطل/البطلة:" if language == 'ar' else "👤 Enter the hero/heroine name:"
-    user_name = input(f"{name_prompt} ").strip()
-    
+    """Ask for user name."""
+    print("\n" + "=" * 60)
+    prompt = "Enter the hero/heroine name: "
+    user_name = input(prompt).strip()
+
     if not user_name:
-        print("❌ لم يتم إدخال اسم!")
+        print("No name provided.")
         return None
-    
-    print(f"✅ تم استلام الاسم: {user_name}")
+
+    print(f"Name received: {user_name}")
     return user_name

@@ -1,39 +1,49 @@
+# ======================
 # Python
+# ======================
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.pyc
 
-# Virtual environment
+# ======================
+# Virtual Environments
+# ======================
 venv/
 ENV/
 env/
 
-# VS Code
-.vscode/
+# ======================
+# Runtime / Generated
+# ======================
+TempUploads/
+Result/
+Head_swap/
 
-# Others
-.DS_Store
-# Python
-venv/
-__pycache__/
-*.pyc
-
+# ======================
 # Build outputs
+# ======================
 build/
 dist/
 *.pkg
+*.spec
 
+# ======================
 # Qt / PySide
+# ======================
 *.dll
 *.pyd
 *.pak
 
-# IDE
+# ======================
+# IDEs
+# ======================
 .vscode/
 .idea/
 
-# OS
+# ======================
+# OS files
+# ======================
 .DS_Store
 Thumbs.db
+desktop.ini
