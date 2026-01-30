@@ -316,6 +316,7 @@ async def regenerate_story(
         story_code,
         user_name,
         character_image_path="",
+        
         pre_swapped_image_path=selected_image_path
     )
 
