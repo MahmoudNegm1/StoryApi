@@ -2,15 +2,19 @@
 """
 🛠️ Utility Functions
 ================================================
+- Info reader
+- Image helpers
+- Similarity
+- Face crop with robust saving (cv2 + PIL fallback)
 """
 
 import os
 import json
-import cv2  # New import for image dimensions
+import cv2
 
 
 def read_info_file(folder_path):
-    """قراءة ملف info.txt من المجلد المحدد"""
+    """Read info.txt (JSON-like) from the selected story folder."""
     info_file_path = os.path.join(folder_path, "info.txt")
 
     en_story_name = None
@@ -23,46 +27,42 @@ def read_info_file(folder_path):
 
     if os.path.exists(info_file_path):
         try:
-            with open(info_file_path, 'r', encoding='utf-8') as f:
-                # قراءة المحتوى كنص أولاً
+            with open(info_file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-                # استبدال علامة = بـ : لجعل الملف JSON صحيح
+                # Normalize to valid JSON
                 content = content.replace('"FIRST_SLIDE_FONT" =', '"FIRST_SLIDE_FONT":')
                 content = content.replace('"REST_SLIDES_FONT" =', '"REST_SLIDES_FONT":')
                 content = content.replace('"AR_FIRST_SLIDE_FONT" =', '"AR_FIRST_SLIDE_FONT":')
                 content = content.replace('"AR_REST_SLIDES_FONT" =', '"AR_REST_SLIDES_FONT":')
-
-                # إزالة الفواصل المزدوجة إذا وجدت
                 content = content.replace('""', '"')
 
-                # تحويل إلى JSON
                 data = json.loads(content)
 
-                en_story_name = data.get('en')
-                ar_story_name = data.get('ar')
-                resolution_slides = data.get('resolution_slides')
-                first_slide_font = data.get('FIRST_SLIDE_FONT')
-                rest_slides_font = data.get('REST_SLIDES_FONT')
-                ar_first_slide_font = data.get('AR_FIRST_SLIDE_FONT')
-                ar_rest_slides_font = data.get('AR_REST_SLIDES_FONT')
+                en_story_name = data.get("en")
+                ar_story_name = data.get("ar")
+                resolution_slides = data.get("resolution_slides")
+                first_slide_font = data.get("FIRST_SLIDE_FONT")
+                rest_slides_font = data.get("REST_SLIDES_FONT")
+                ar_first_slide_font = data.get("AR_FIRST_SLIDE_FONT")
+                ar_rest_slides_font = data.get("AR_REST_SLIDES_FONT")
 
         except Exception as e:
             print(f"⚠️ Error reading info.txt: {e}")
 
-    return en_story_name, ar_story_name, resolution_slides, first_slide_font, rest_slides_font, ar_first_slide_font, ar_rest_slides_font
+    return (
+        en_story_name,
+        ar_story_name,
+        resolution_slides,
+        first_slide_font,
+        rest_slides_font,
+        ar_first_slide_font,
+        ar_rest_slides_font,
+    )
 
 
 def get_image_dimensions(image_path):
-    """
-    الحصول على أبعاد الصورة
-
-    Args:
-        image_path: مسار الصورة
-
-    Returns:
-        (width, height) أو None في حالة الفشل
-    """
+    """Return (width, height) for an image path or None."""
     if not os.path.exists(image_path):
         return None
 
@@ -75,24 +75,11 @@ def get_image_dimensions(image_path):
 
 
 def calculate_closest_aspect_ratio(width: int, height: int) -> str:
-    """
-    حساب أقرب Aspect Ratio مدعوم.
-
-    يرجّع أحد القيم:
-      "1:1", "16:9", "9:16", "4:3", "3:4"
-
-    Args:
-        width: عرض الصورة
-        height: ارتفاع الصورة
-
-    Returns:
-        str: أقرب نسبة
-    """
+    """Return the closest supported aspect ratio string."""
     try:
         if not width or not height:
             return "16:9"
 
-        # نسبة العرض للارتفاع
         r = width / float(height)
 
         candidates = {
@@ -110,39 +97,21 @@ def calculate_closest_aspect_ratio(width: int, height: int) -> str:
 
 
 def flip_image_horizontal(image):
-    """
-    قلب الصورة أفقياً (mirror flip)
-
-    Args:
-        image: الصورة (numpy array)
-
-    Returns:
-        الصورة المقلوبة أفقياً
-    """
+    """Mirror flip an image horizontally."""
     if image is None:
         return None
-
-    # استخدام cv2.flip مع flipCode=1 للقلب الأفقي
     return cv2.flip(image, 1)
 
 
 def compare_images_similarity(image1_path, image2_path):
     """
-    مقارنة التشابه بين صورتين باستخدام SSIM
-
-    Args:
-        image1_path: مسار الصورة الأولى (أو numpy array)
-        image2_path: مسار الصورة الثانية (أو numpy array)
-
-    Returns:
-        float: نسبة التشابه من 0.0 إلى 1.0 (1.0 = متطابقة تماماً)
-               أو None في حالة الفشل
+    Compare similarity between two images using SSIM.
+    Accepts paths or numpy arrays.
+    Returns float in [0,1] or None.
     """
     try:
         from skimage.metrics import structural_similarity as ssim
-        import numpy as np
 
-        # قراءة الصور
         if isinstance(image1_path, str):
             img1 = cv2.imread(image1_path)
         else:
@@ -156,18 +125,13 @@ def compare_images_similarity(image1_path, image2_path):
         if img1 is None or img2 is None:
             return None
 
-        # تحويل للرمادي لتسريع المقارنة
         gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
-        # التأكد من أن الصور بنفس الحجم
         if gray1.shape != gray2.shape:
             gray2 = cv2.resize(gray2, (gray1.shape[1], gray1.shape[0]))
 
-        # حساب SSIM
-        similarity_index = ssim(gray1, gray2)
-
-        return similarity_index
+        return float(ssim(gray1, gray2))
 
     except ImportError:
         print("   ⚠️  scikit-image not installed. Install with: pip install scikit-image")
@@ -177,61 +141,98 @@ def compare_images_similarity(image1_path, image2_path):
         return None
 
 
+# =========================
+# Robust saving helpers
+# =========================
+def _ensure_dir(path: str) -> None:
+    try:
+        os.makedirs(path, exist_ok=True)
+    except Exception as e:
+        print(f"[ERROR] Could not create directory: {path} -> {e}")
+
+
+def _safe_write_cv2(path: str, img) -> bool:
+    try:
+        folder = os.path.dirname(path)
+        if folder:
+            _ensure_dir(folder)
+
+        ok = cv2.imwrite(path, img)
+        if ok and os.path.exists(path) and os.path.getsize(path) > 0:
+            return True
+
+        print("[ERROR] cv2.imwrite returned False or file not created.")
+        print("       path:", path)
+        return False
+
+    except Exception as e:
+        print("[ERROR] cv2.imwrite exception:", e)
+        print("       path:", path)
+        return False
+
+
+def _safe_write_pil(path: str, img_bgr) -> bool:
+    try:
+        from PIL import Image
+
+        folder = os.path.dirname(path)
+        if folder:
+            _ensure_dir(folder)
+
+        rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+        im = Image.fromarray(rgb)
+        im.save(path)
+
+        return os.path.exists(path) and os.path.getsize(path) > 0
+
+    except Exception as e:
+        print("[ERROR] PIL save exception:", e)
+        print("       path:", path)
+        return False
+
+
 def crop_face_only(image_path, output_path, padding=2):
     """
-    قص الصورة على الوجه فقط باستخدام Haar Cascade
-    مع محاولة تدوير الصورة إذا فشل الاكتشاف
-
-    Args:
-        image_path: مسار الصورة الأصلية
-        output_path: مسار حفظ الصورة المقصوصة
-        padding: مقدار المساحة حول الوجه (2 = 200% من حجم الوجه)
-
-    Returns:
-        str: مسار الصورة المقصوصة، أو None في حالة الفشل
+    Crop to face using Haar Cascade, with rotation attempts.
+    Robustly saves the output (cv2 first, PIL fallback).
+    Returns saved path or None.
     """
     import numpy as np
 
     def rotate_image(image, angle):
-        """تدوير الصورة بزاوية معينة"""
         h, w = image.shape[:2]
         center = (w // 2, h // 2)
         rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
 
-        # حساب الأبعاد الجديدة بعد التدوير
         cos = np.abs(rotation_matrix[0, 0])
         sin = np.abs(rotation_matrix[0, 1])
         new_w = int((h * sin) + (w * cos))
         new_h = int((h * cos) + (w * sin))
 
-        # تعديل مصفوفة التدوير للحفاظ على الصورة كاملة
         rotation_matrix[0, 2] += (new_w / 2) - center[0]
         rotation_matrix[1, 2] += (new_h / 2) - center[1]
 
         rotated = cv2.warpAffine(
-            image, rotation_matrix, (new_w, new_h),
+            image,
+            rotation_matrix,
+            (new_w, new_h),
             flags=cv2.INTER_LINEAR,
             borderMode=cv2.BORDER_CONSTANT,
-            borderValue=(255, 255, 255)
+            borderValue=(255, 255, 255),
         )
         return rotated
 
-    def detect_and_crop(img, angle_name="الأصلية"):
-        """محاولة اكتشاف وقص الوجه"""
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    def detect_and_crop(img, angle_name="original"):
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         h, w = img.shape[:2]
 
-        # اكتشاف الوجوه
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-
         if len(faces) == 0:
             return None
 
-        # أخذ أول وجه (الأكبر عادة)
         x, y, width, height = faces[0]
 
-        # إضافة padding حول الوجه
         pad_w = int(width * (padding - 1) / 2)
         pad_h = int(height * (padding - 1) / 2)
 
@@ -240,50 +241,49 @@ def crop_face_only(image_path, output_path, padding=2):
         x2 = min(w, x + width + pad_w)
         y2 = min(h, y + height + pad_h)
 
-        # قص الوجه
         cropped = img[y1:y2, x1:x2]
-        print(f"   ✂️  الوجه اتقص من ({x1},{y1}) لـ ({x2},{y2}) - الزاوية: {angle_name}")
-
+        print(f"   ✂️  Face cropped ({x1},{y1}) -> ({x2},{y2}) | angle: {angle_name}")
         return cropped
 
     try:
-        # قراءة الصورة الأصلية
         img = cv2.imread(image_path)
         if img is None:
-            print(f"   ❌ فشل قراءة الصورة: {image_path}")
+            print(f"   ❌ Failed to read image: {image_path}")
             return None
 
-        # المحاولة 1: الصورة الأصلية
-        print("   🔍 محاولة 1: الصورة الأصلية...")
-        cropped = detect_and_crop(img, "الأصلية")
-
+        # Try 1: original
+        print("   🔍 Try 1: original...")
+        cropped = detect_and_crop(img, "original")
         if cropped is not None:
-            cv2.imwrite(output_path, cropped)
-            return output_path
+            if _safe_write_cv2(output_path, cropped) or _safe_write_pil(output_path, cropped):
+                return output_path
+            return None
 
-        # المحاولة 2: دوران 45° مع عقارب الساعة
-        print("   🔍 محاولة 2: دوران 45° مع عقارب الساعة...")
+        # Try 2: rotate -45
+        print("   🔍 Try 2: rotate -45...")
         rotated_cw = rotate_image(img, -45)
-        cropped = detect_and_crop(rotated_cw, "45° مع عقارب الساعة")
-
+        cropped = detect_and_crop(rotated_cw, "-45")
         if cropped is not None:
-            cv2.imwrite(output_path, cropped)
-            return output_path
+            if _safe_write_cv2(output_path, cropped) or _safe_write_pil(output_path, cropped):
+                return output_path
+            return None
 
-        # المحاولة 3: دوران 45° عكس عقارب الساعة
-        print("   🔍 محاولة 3: دوران 45° عكس عقارب الساعة...")
+        # Try 3: rotate +45
+        print("   🔍 Try 3: rotate +45...")
         rotated_ccw = rotate_image(img, 45)
-        cropped = detect_and_crop(rotated_ccw, "45° عكس عقارب الساعة")
-
+        cropped = detect_and_crop(rotated_ccw, "+45")
         if cropped is not None:
-            cv2.imwrite(output_path, cropped)
+            if _safe_write_cv2(output_path, cropped) or _safe_write_pil(output_path, cropped):
+                return output_path
+            return None
+
+        # Fallback: save original
+        print("   ⚠️  No face detected. Saving original image as fallback.")
+        if _safe_write_cv2(output_path, img) or _safe_write_pil(output_path, img):
             return output_path
 
-        # إذا فشلت كل المحاولات
-        print("   ⚠️  مفيش وجه اتلقى في كل المحاولات، هستخدم الصورة الأصلية")
-        cv2.imwrite(output_path, img)
-        return output_path
+        return None
 
     except Exception as e:
-        print(f"   ❌ خطأ في قص الوجه: {str(e)}")
+        print(f"   ❌ crop_face_only error: {str(e)}")
         return None

@@ -1,21 +1,35 @@
 # -*- coding: utf-8 -*-
 """
-Text Handler Module
-- Loads fonts
-- Reads/cleans text JSON
-- Renders HTML text onto images (Qt)
-- Optional helper to integrate with Segmind head-swap pipeline (api_segmiod.py)
+Text Handler Module (FIXED + DEBUG)
+- Stable HTML render using QTextDocument + QGraphicsScene (captures shadow reliably)
+- Auto-scales label positions if current image resolution != design resolution (from info.txt)
+- Strong debug prints controlled by env vars:
+    TEXT_DEBUG=1
+    TEXT_DEBUG_HTML=1   (prints full html)
 """
 
 import os
 import json
 import re
+from pathlib import Path
+
 import cv2
 import numpy as np
 
-from PySide6.QtWidgets import QLabel, QGraphicsDropShadowEffect, QApplication
-from PySide6.QtGui import QPixmap, QPainter, QFontDatabase, QColor, QImage
-from PySide6.QtCore import Qt, QBuffer, QIODevice
+from PySide6.QtWidgets import (
+    QApplication,
+    QGraphicsDropShadowEffect,
+    QGraphicsScene,
+    QGraphicsTextItem,
+)
+from PySide6.QtGui import (
+    QFontDatabase,
+    QColor,
+    QImage,
+    QPainter,
+    QTextDocument,
+)
+from PySide6.QtCore import Qt, QRectF
 
 from Codes.config import (
     EN_FIRST_SLIDE_FONT, EN_REST_SLIDES_FONT,
@@ -23,6 +37,78 @@ from Codes.config import (
     ENABLE_TEXT_SHADOW,
     SHADOW_BLUR_RADIUS, SHADOW_COLOR, SHADOW_OFFSET_X, SHADOW_OFFSET_Y,
 )
+
+# =========================
+# Debug helpers
+# =========================
+
+DEBUG = os.environ.get("TEXT_DEBUG", "0").strip() in ("1", "true", "True", "YES", "yes")
+DEBUG_HTML = os.environ.get("TEXT_DEBUG_HTML", "0").strip() in ("1", "true", "True", "YES", "yes")
+
+
+def _dprint(msg: str):
+    if DEBUG:
+        print(msg)
+
+
+def _short(s: str, n: int = 180) -> str:
+    s = (s or "").replace("\n", " ").replace("\r", " ").strip()
+    if len(s) <= n:
+        return s
+    return s[:n] + "..."
+
+
+# =========================
+# Auto-load design resolutions from info.txt
+# =========================
+
+_RES_MAP_CACHE = None
+
+
+def _find_info_txt() -> str | None:
+    # 1) ENV override
+    envp = os.environ.get("TEXT_INFO_PATH")
+    if envp and os.path.exists(envp):
+        return envp
+
+    # 2) Try next to this file
+    here = Path(__file__).resolve().parent
+    p1 = here / "info.txt"
+    if p1.exists():
+        return str(p1)
+
+    # 3) Try project root (one/two levels up)
+    for up in [here.parent, here.parent.parent, Path.cwd()]:
+        p = up / "info.txt"
+        if p.exists():
+            return str(p)
+
+    return None
+
+
+def _load_resolution_map() -> dict[str, tuple[int, int]]:
+    global _RES_MAP_CACHE
+    if _RES_MAP_CACHE is not None:
+        return _RES_MAP_CACHE
+
+    res_map: dict[str, tuple[int, int]] = {}
+    info_path = _find_info_txt()
+    if not info_path:
+        _RES_MAP_CACHE = res_map
+        _dprint("[Info] info.txt not found -> no autoscale map")
+        return _RES_MAP_CACHE
+
+    try:
+        info = json.loads(open(info_path, "r", encoding="utf-8").read())
+        for name, w, h in info.get("resolution_slides", []):
+            res_map[str(name)] = (int(w), int(h))
+        _RES_MAP_CACHE = res_map
+        _dprint(f"[Info] Loaded resolution map from: {info_path} ({len(res_map)} slides)")
+        return _RES_MAP_CACHE
+    except Exception as e:
+        _RES_MAP_CACHE = {}
+        _dprint(f"[Info] Failed to read info.txt: {e}")
+        return _RES_MAP_CACHE
 
 
 # =========================
@@ -34,8 +120,6 @@ def load_custom_fonts(language: str,
                       rest_slides_font_path: str | None = None,
                       base_dir: str | None = None) -> dict:
     """
-    Load custom fonts based on language.
-    If info.txt provided relative paths, pass base_dir to resolve them.
     Returns: {"first": "FamilyName", "rest": "FamilyName"}
     """
     fonts_loaded: dict = {}
@@ -61,11 +145,11 @@ def load_custom_fonts(language: str,
             families = QFontDatabase.applicationFontFamilies(font_id)
             if families:
                 fonts_loaded["first"] = families[0]
-                print(f"[Fonts] Loaded FIRST font: {families[0]} ({os.path.basename(first_font)})")
+                _dprint(f"[Fonts] Loaded FIRST: {families[0]} ({os.path.basename(first_font)})")
         else:
-            print(f"[Fonts] Failed to load FIRST font: {first_font}")
+            _dprint(f"[Fonts] Failed to load FIRST font: {first_font}")
     else:
-        print(f"[Fonts] FIRST font not found: {first_font}")
+        _dprint(f"[Fonts] FIRST font not found: {first_font}")
 
     # Rest slides font
     if os.path.exists(rest_font):
@@ -74,11 +158,11 @@ def load_custom_fonts(language: str,
             families = QFontDatabase.applicationFontFamilies(font_id)
             if families:
                 fonts_loaded["rest"] = families[0]
-                print(f"[Fonts] Loaded REST font:  {families[0]} ({os.path.basename(rest_font)})")
+                _dprint(f"[Fonts] Loaded REST:  {families[0]} ({os.path.basename(rest_font)})")
         else:
-            print(f"[Fonts] Failed to load REST font: {rest_font}")
+            _dprint(f"[Fonts] Failed to load REST font: {rest_font}")
     else:
-        print(f"[Fonts] REST font not found: {rest_font}")
+        _dprint(f"[Fonts] REST font not found: {rest_font}")
 
     return fonts_loaded
 
@@ -91,7 +175,6 @@ def inject_font_family(html_text: str, font_family: str | None) -> str:
     if not font_family:
         return html_text
 
-    # Remove any existing font-family declarations
     html_text = re.sub(r"font-family:\s*[^;'\"]+[;\"]", "", html_text)
     html_text = re.sub(r"font-family:\s*'[^']+'[;\"]?", "", html_text)
     html_text = re.sub(r'font-family:\s*"[^"]+"[;\"]?', "", html_text)
@@ -111,24 +194,30 @@ def inject_font_family(html_text: str, font_family: str | None) -> str:
     return html_text
 
 
+def _clamp(v: float, lo: float, hi: float) -> float:
+    try:
+        return max(lo, min(hi, float(v)))
+    except Exception:
+        return lo
+
+
 def scale_font_sizes(html_text: str, global_font: float) -> str:
     if not global_font or global_font == 0:
         return html_text
 
+    gf = _clamp(global_font, 0.1, 10.0)
+
     def repl(match):
         original_size = float(match.group(1))
-        unit = match.group(2)
-        new_size = int(original_size * global_font)
+        unit = match.group(2) if match.group(2) else "pt"
+        new_size = int(original_size * gf)
         new_size = max(1, new_size)
         return f"font-size:{new_size}{unit}"
 
-    return re.sub(r"font-size:(\d+(?:\.\d+)?)(pt|px)", repl, html_text)
+    return re.sub(r"font-size:(\d+(?:\.\d+)?)(pt|px)?", repl, html_text)
 
 
 def make_waw_transparent(html_text: str) -> str:
-    """
-    Make standalone Arabic letter 'و' transparent if it is explicitly styled as black.
-    """
     html_text = re.sub(
         r"(<span[^>]*color:\s*#000000[^>]*>)\s*و\s*(</span>)",
         lambda m: m.group(1).replace("color:#000000", "color:transparent") + "و" + m.group(2),
@@ -148,23 +237,26 @@ def make_waw_transparent(html_text: str) -> str:
 
 
 def replace_name_in_html(html_text: str, user_name: str, is_first_slide: bool = False, language: str = "en") -> str:
-    if language == "en" and "[*NAME*]" in html_text:
-        html_text = html_text.replace("[*NAME*]", user_name.upper() if is_first_slide else user_name)
-    elif language == "ar" and "[*الاسم*]" in html_text:
-        html_text = html_text.replace("[*الاسم*]", user_name.upper() if is_first_slide else user_name)
+    if not user_name:
+        return html_text
+
+    repl = ("  " + user_name.upper()) if is_first_slide else ("  " + user_name)
+
+    if language == "en":
+        html_text = html_text.replace("[*NAME*]", repl)
+        html_text = html_text.replace("[*Name*]", repl)
+    elif language == "ar":
+        html_text = html_text.replace("[*الاسم*]", repl)
+        html_text = html_text.replace("[*اسم*]", repl)
+
     return html_text
 
 
 # =========================
-# JSON text reader (with HTML cleaning)
+# JSON text reader
 # =========================
 
 def read_text_data(file_path: str, user_name: str = "", language: str = "en") -> dict | None:
-    """
-    Reads JSON that contains: {"slide_01": [{"html": "...", "x":.., "y":.., ...}, ...], ...}
-    Cleans broken quotes inside 'html' fields.
-    Replaces name placeholders if user_name is provided.
-    """
     if not os.path.exists(file_path):
         print(f"[Text] File not found: {file_path}")
         return None
@@ -174,11 +266,12 @@ def read_text_data(file_path: str, user_name: str = "", language: str = "en") ->
         if not raw_content.strip():
             return None
 
+        # Keep your "clean broken quotes inside html" logic as-is
         result = []
         i = 0
         while i < len(raw_content):
-            if raw_content[i:i+7] == '"html":':
-                result.append(raw_content[i:i+7])
+            if raw_content[i:i + 7] == '"html":':
+                result.append(raw_content[i:i + 7])
                 i += 7
 
                 while i < len(raw_content) and raw_content[i] in " \t":
@@ -194,17 +287,14 @@ def read_text_data(file_path: str, user_name: str = "", language: str = "en") ->
                         ch = raw_content[i]
 
                         if ch == '"':
-                            peek = raw_content[i+1:i+20].lstrip()
+                            peek = raw_content[i + 1:i + 20].lstrip()
                             if peek.startswith(",") or peek.startswith("}"):
                                 cleaned_html = "".join(html_chars)
-
                                 cleaned_html = cleaned_html.replace('\\"', "'").replace("\\'", "'")
                                 cleaned_html = re.sub(r'(?<!=)"(?![>\s])', "'", cleaned_html)
-
                                 cleaned_html = cleaned_html.replace("\\n", " ").replace("\\t", " ").replace("\\r", "")
                                 cleaned_html = cleaned_html.replace("\\/", "/")
                                 cleaned_html = cleaned_html.replace(',"', ",'").replace('",', "',")
-
                                 result.append(cleaned_html)
                                 result.append('"')
                                 i += 1
@@ -261,32 +351,7 @@ def read_text_data(file_path: str, user_name: str = "", language: str = "en") ->
 
 
 # =========================
-# Scaling helpers (optional)
-# =========================
-
-def scale_text_positions(labels_list: list, ratio_x: float, ratio_y: float) -> list:
-    import math
-    font_ratio = math.sqrt(max(1e-9, ratio_x * ratio_y))
-
-    scaled = []
-    for item in labels_list:
-        new_item = item.copy()
-        new_item["x"] = int(item.get("x", 0) * ratio_x)
-        new_item["y"] = int(item.get("y", 0) * ratio_y)
-        new_item["width"] = int(item.get("width", 400) * ratio_x)
-        new_item["height"] = int(item.get("height", 200) * ratio_y)
-
-        gf = item.get("global_font", 0)
-        if gf != 0:
-            new_item["global_font"] = gf * font_ratio
-
-        scaled.append(new_item)
-
-    return scaled
-
-
-# =========================
-# Rendering (Qt)
+# Qt app
 # =========================
 
 def _ensure_qt_app():
@@ -294,6 +359,79 @@ def _ensure_qt_app():
     if app is None:
         app = QApplication([])
     return app
+
+
+# =========================
+# Rendering core
+# =========================
+
+def _render_html_to_qimage(
+    html: str,
+    w: int,
+    h: int,
+    shadow: bool,
+    blur_radius: int,
+    shadow_color_rgba: tuple,
+    shadow_offset: tuple[int, int],
+) -> QImage:
+    """
+    Render html into transparent QImage using QTextDocument + QGraphicsScene.
+    This captures QGraphicsDropShadowEffect correctly.
+    """
+    html = html or ""
+
+    doc = QTextDocument()
+    doc.setHtml(html)
+    doc.setTextWidth(max(1, int(w)))
+
+    item = QGraphicsTextItem()
+    item.setDocument(doc)
+    item.setDefaultTextColor(QColor(255, 255, 255, 255))  # html colors override anyway
+
+    if shadow:
+        eff = QGraphicsDropShadowEffect()
+        eff.setBlurRadius(int(blur_radius))
+        eff.setColor(QColor(*shadow_color_rgba))
+        eff.setOffset(int(shadow_offset[0]), int(shadow_offset[1]))
+        item.setGraphicsEffect(eff)
+
+    scene = QGraphicsScene()
+    scene.addItem(item)
+
+    img = QImage(int(w), int(h), QImage.Format_ARGB32_Premultiplied)
+    img.fill(Qt.transparent)
+
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing, True)
+    p.setRenderHint(QPainter.TextAntialiasing, True)
+
+    scene.render(p, QRectF(0, 0, w, h), QRectF(0, 0, w, h))
+    p.end()
+    return img
+
+
+def _qimage_to_bgr(img: QImage) -> np.ndarray:
+    """
+    PySide6-safe QImage -> numpy conversion (NO ptr.setsize usage)
+    """
+    img = img.convertToFormat(QImage.Format_ARGB32_Premultiplied)
+    w = img.width()
+    h = img.height()
+    bpl = img.bytesPerLine()
+
+    ptr = img.bits()  # memoryview in PySide6
+    raw = ptr.tobytes()  # safe
+    arr = np.frombuffer(raw, dtype=np.uint8).reshape((h, bpl // 4, 4))
+    arr = arr[:, :w, :]  # crop padding
+    # ARGB32 premultiplied -> BGRA bytes order in memory is usually BGRA for Qt on little-endian,
+    # but since we're using OpenCV decode later anyway, we keep it as BGRA then convert.
+    bgra = arr.copy()
+    bgr = cv2.cvtColor(bgra, cv2.COLOR_BGRA2BGR)
+    return bgr
+
+
+def _scale_rect(x, y, w, h, rx, ry):
+    return int(x * rx), int(y * ry), int(w * rx), int(h * ry)
 
 
 def render_image(
@@ -304,6 +442,7 @@ def render_image(
     is_first_slide: bool = False,
     image_data=None,
     silent: bool = False,
+    **kwargs,  # IMPORTANT: accepts unexpected args (like app=...) without crashing
 ):
     """
     Render HTML labels onto image.
@@ -315,86 +454,134 @@ def render_image(
     if fonts_loaded is None:
         fonts_loaded = {}
 
-    _ensure_qt_app()
+    app = _ensure_qt_app()
 
     if not silent:
-        print(f"[Render] Image: {image_name}")
+        _dprint("=" * 80)
+        _dprint(f"[Render] Image: {image_name}")
+        _dprint(f"[Render] labels_count={len(text_data_list)}")
+        _dprint(f"[Render] fonts_loaded={fonts_loaded}")
+        _dprint(f"[Render] shadow_enabled={ENABLE_TEXT_SHADOW} blur={SHADOW_BLUR_RADIUS} "
+                f"off=({SHADOW_OFFSET_X},{SHADOW_OFFSET_Y}) color={tuple(SHADOW_COLOR)}")
 
-    # Load base pixmap
+    # Load cv image
     if image_data is not None:
-        h, w, _ = image_data.shape
-        rgb = cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
-        q_img = QImage(rgb.data, w, h, 3 * w, QImage.Format_RGB888)
-        base_pixmap = QPixmap.fromImage(q_img)
+        base_cv = image_data
     elif image_path:
-        base_pixmap = QPixmap(image_path)
+        base_cv = cv2.imread(image_path)
     else:
         if not silent:
             print("[Render] No image_path or image_data provided.")
         return None
 
-    if base_pixmap.isNull():
+    if base_cv is None:
         if not silent:
-            print("[Render] Failed to load image.")
+            print("[Render] Failed to load base image.")
         return None
 
-    # Pick font family
+    base_h, base_w = base_cv.shape[:2]
+
+    # Determine design resolution for this slide from info.txt
+    res_map = _load_resolution_map()
+    design_w, design_h = res_map.get(image_name, (base_w, base_h))
+    rx = base_w / design_w if design_w else 1.0
+    ry = base_h / design_h if design_h else 1.0
+
+    if not silent:
+        _dprint(f"[Render] CV image size:  {base_w}x{base_h}")
+        _dprint(f"[Render] Design size:    {design_w}x{design_h}  scale=({rx:.4f},{ry:.4f})")
+
+    # Choose font family
     font_family = None
     if is_first_slide and "first" in fonts_loaded:
         font_family = fonts_loaded["first"]
     elif (not is_first_slide) and "rest" in fonts_loaded:
         font_family = fonts_loaded["rest"]
 
-    final_pixmap = QPixmap(base_pixmap.size())
-    final_pixmap.fill(Qt.transparent)
+    if not silent:
+        _dprint(f"[Render] is_first_slide={is_first_slide} -> font_family={font_family}")
 
-    painter = QPainter(final_pixmap)
-    painter.drawPixmap(0, 0, base_pixmap)
+    # Convert base_cv -> QImage
+    rgb = cv2.cvtColor(base_cv, cv2.COLOR_BGR2RGB)
+    qimg = QImage(rgb.data, base_w, base_h, 3 * base_w, QImage.Format_RGB888)
 
+    # Paint on a new ARGB image
+    out_img = QImage(base_w, base_h, QImage.Format_ARGB32_Premultiplied)
+    out_img.fill(Qt.transparent)
+
+    painter = QPainter(out_img)
+    painter.setRenderHint(QPainter.Antialiasing, True)
+    painter.setRenderHint(QPainter.TextAntialiasing, True)
+
+    # Draw base image
+    painter.drawImage(0, 0, qimg)
+
+    # Render each label
     for idx, item in enumerate(text_data_list, 1):
-        html = item.get("html", "")
-        x = int(item.get("x", 0))
-        y = int(item.get("y", 0))
-        w = int(item.get("width", 400))
-        h = int(item.get("height", 200))
-        global_font = float(item.get("global_font", 0) or 0)
+        html = item.get("html", "") or ""
+        x = int(item.get("x", 0) or 0)
+        y = int(item.get("y", 0) or 0)
+        ww = int(item.get("width", 400) or 400)
+        hh = int(item.get("height", 200) or 200)
+        gf = float(item.get("global_font", 0) or 0)
 
+        # Apply scaling if image size != design size
+        sx, sy, sw, sh = _scale_rect(x, y, ww, hh, rx, ry)
+
+        # Build final html
+        html2 = html
         if font_family:
-            html = inject_font_family(html, font_family)
-        if global_font != 0:
-            html = scale_font_sizes(html, global_font)
-        html = make_waw_transparent(html)
-
-        label = QLabel()
-        label.setText(html)
-        label.setWordWrap(True)
-        label.setStyleSheet("background: transparent;")
-        label.setGeometry(x, y, w, h)
-
-        if ENABLE_TEXT_SHADOW:
-            shadow = QGraphicsDropShadowEffect()
-            shadow.setBlurRadius(SHADOW_BLUR_RADIUS)
-            shadow.setColor(QColor(*SHADOW_COLOR))
-            shadow.setOffset(SHADOW_OFFSET_X, SHADOW_OFFSET_Y)
-            label.setGraphicsEffect(shadow)
-
-        pix = label.grab()
-        painter.drawPixmap(x, y, pix)
+            html2 = inject_font_family(html2, font_family)
+        if gf != 0:
+            html2 = scale_font_sizes(html2, gf)
+        html2 = make_waw_transparent(html2)
 
         if not silent:
-            print(f"[Render] Label {idx}: ({x},{y}) [{w}x{h}] FontScale={global_font:.2f}")
+            _dprint("-" * 80)
+            _dprint(f"[Render] Label {idx}")
+            _dprint(f"  rect_design=({x},{y},{ww},{hh}) gf={gf}")
+            _dprint(f"  rect_scaled=({sx},{sy},{sw},{sh})")
+            if y < 0:
+                _dprint("  ⚠️ NOTE: y is negative in DESIGN coords")
+            if x < 0:
+                _dprint("  ⚠️ NOTE: x is negative in DESIGN coords")
+            _dprint(f"  html_raw_preview:  {_short(html)}")
+            if DEBUG_HTML:
+                _dprint(f"  html_final_full:\n{html2}")
+            else:
+                _dprint(f"  html_final_preview:{_short(html2)}")
+
+        # Render label to QImage (with shadow)
+        label_img = _render_html_to_qimage(
+            html=html2,
+            w=max(1, sw),
+            h=max(1, sh),
+            shadow=bool(ENABLE_TEXT_SHADOW),
+            blur_radius=int(SHADOW_BLUR_RADIUS),
+            shadow_color_rgba=tuple(SHADOW_COLOR),
+            shadow_offset=(int(SHADOW_OFFSET_X), int(SHADOW_OFFSET_Y)),
+        )
+
+        # Draw it (handles negative coords / clipping naturally)
+        painter.drawImage(int(sx), int(sy), label_img)
+
+        # If debugging, sample alpha to detect "fully transparent"
+        if not silent:
+            # sample a few pixels
+            w2, h2 = label_img.width(), label_img.height()
+            if w2 >= 20 and h2 >= 20:
+                c1 = QColor(label_img.pixel(10, 10)).getRgb()
+                c2 = QColor(label_img.pixel(w2 // 2, h2 // 2)).getRgb()
+                c3 = QColor(label_img.pixel(w2 - 10, h2 - 10)).getRgb()
+                _dprint(f"  label_sample RGBA: (10,10)={c1}  center={c2}  (w-10,h-10)={c3}")
+                if c1[3] == 0 and c2[3] == 0 and c3[3] == 0:
+                    _dprint("  ⚠️ WARNING: label render looks fully transparent")
 
     painter.end()
 
-    # Convert final_pixmap -> OpenCV BGR
-    buffer = QBuffer()
-    buffer.open(QIODevice.WriteOnly)
-    final_pixmap.save(buffer, "PNG")
-    buffer.close()
-
-    arr = np.frombuffer(buffer.data(), dtype=np.uint8)
-    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    return img
+    # QImage -> OpenCV BGR
+    out_bgr = _qimage_to_bgr(out_img)
+    return out_bgr
 
 
 # =========================
@@ -435,7 +622,6 @@ def render_image_worker(args):
             image_data=img_cv,
             silent=True,
         )
-
         if out_cv is None:
             return (image_name, None, "Render failed")
 
@@ -461,16 +647,8 @@ def segmind_swap_then_render_text(
     fonts_loaded: dict,
     is_first_slide: bool = False,
 ):
-    """
-    1) Calls api_segmiod.perform_head_swap(...)
-    2) Loads the swapped image
-    3) Renders text on top
-    4) Saves final output to output_filename
-
-    Returns: output_filename or None
-    """
     try:
-        from api_segmiod import perform_head_swap  # your Segmind module name
+        from api_segmiod import perform_head_swap
 
         swapped_path = perform_head_swap(
             target_image_path=target_image_path,
@@ -508,3 +686,4 @@ def segmind_swap_then_render_text(
     except Exception as e:
         print(f"[Segmind+Text] Error: {e}")
         return None
+    

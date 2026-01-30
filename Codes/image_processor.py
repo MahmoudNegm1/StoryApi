@@ -1,11 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-🖼️ Image Processor Module
-- Head swap batch (non-interactive) for all API slides
-- THEN review mode: user can pick any slide and generate multiple candidates,
-  then choose the best one.
-- Force output back to original resolution
-- Text overlay (sequential or parallel) + safety scaling for labels
+🖼️ Image Processor Module (CLEAN - Interactive CLI Attempts)
+
+What this module does:
+- Batch head-swap for all API images (attempt 1 only) + copy normal images
+- Interactive CLI selection to regenerate a specific slide with multiple tries
+- Text overlay (sequential or parallel)
+- Resolution handling
+
+IMPORTANT:
+- Uses api_segmiod.py (note the name) and its fixed signature:
+    perform_head_swap(target_image_path, face_image_path, output_filename, face_url_cached=None)
+
+- This module controls attempts using env vars supported by api_segmiod.py:
+    SEGMIND_SINGLE_ATTEMPT=1
+    SEGMIND_ATTEMPT_INDEX=1..∞ (any positive integer)
+    SEGMIND_INTERACTIVE=0  (we do the interactive flow here; api stays non-interactive per attempt)
 """
 
 import os
@@ -14,7 +24,7 @@ import time
 import shutil
 
 from Codes.config import HEAD_SWAP_DELAY
-from Codes.api_segmiod import perform_head_swap  # keep as-is to avoid breaking other files
+from Codes.api_segmiod import perform_head_swap  # IMPORTANT: api_segmiod.py
 from Codes.text_handler import render_image
 from Codes.utils import get_image_dimensions
 
@@ -47,7 +57,7 @@ def _safe_input(prompt: str) -> str:
         return ""
 
 
-def _parse_slide_input(val: str) -> str | None:
+def _parse_slide_key(val: str) -> str | None:
     """
     Accepts:
       - "8" -> "slide_08"
@@ -131,7 +141,7 @@ def apply_text_to_images(
     first_slide_font=None,
     rest_slides_font=None,
 ):
-    from Codes.config import USE_PARALLEL_TEXT_PROCESSING, MAX_TEXT_WORKERS
+    from config import USE_PARALLEL_TEXT_PROCESSING
 
     if use_parallel is None:
         use_parallel = USE_PARALLEL_TEXT_PROCESSING
@@ -173,7 +183,6 @@ def _apply_text_sequential(images_dict, text_data, original_dims_dict, app, font
 
         labels_list = text_data[image_name]
 
-        # Safety scaling if needed
         if image_name in original_dims_dict:
             orig_w, orig_h = original_dims_dict[image_name]
             if current_w != orig_w or current_h != orig_h:
@@ -184,12 +193,11 @@ def _apply_text_sequential(images_dict, text_data, original_dims_dict, app, font
 
         img_with_text = render_image(
             image_name=image_name,
-            text_data_list=labels_list,
-            app=app,
+             text_data_list=labels_list,
             fonts_loaded=fonts_loaded,
             is_first_slide=is_first,
             image_data=img,
-        )
+)
 
         processed_images[image_name] = img_with_text if img_with_text is not None else img
 
@@ -206,7 +214,7 @@ def _restore_image_worker(args):
 
 def _apply_text_parallel(images_dict, text_data, original_dims_dict, language, first_slide_font=None, rest_slides_font=None):
     from multiprocessing import Pool
-    from Codes.config import MAX_TEXT_WORKERS, BASE_DIR
+    from config import MAX_TEXT_WORKERS, BASE_DIR
     from parallel_text_processor import apply_text_parallel
 
     restored_images = {}
@@ -226,12 +234,11 @@ def _apply_text_parallel(images_dict, text_data, original_dims_dict, language, f
         for image_name, img in results:
             restored_images[image_name] = img
 
-    # Resolve font paths
     if first_slide_font and rest_slides_font:
         first_font_path = os.path.join(BASE_DIR, first_slide_font) if not os.path.isabs(first_slide_font) else first_slide_font
         rest_font_path = os.path.join(BASE_DIR, rest_slides_font) if not os.path.isabs(rest_slides_font) else rest_slides_font
     else:
-        from Codes.config import EN_FIRST_SLIDE_FONT, EN_REST_SLIDES_FONT, AR_FIRST_SLIDE_FONT, AR_REST_SLIDES_FONT
+        from config import EN_FIRST_SLIDE_FONT, EN_REST_SLIDES_FONT, AR_FIRST_SLIDE_FONT, AR_REST_SLIDES_FONT
         if language == "en":
             first_font_path = EN_FIRST_SLIDE_FONT
             rest_font_path = EN_REST_SLIDES_FONT
@@ -249,132 +256,159 @@ def _apply_text_parallel(images_dict, text_data, original_dims_dict, language, f
 
 
 # ---------------------------
-# Head swap: batch + review mode
+# Head swap: batch + interactive refine
 # ---------------------------
-def _generate_one_output(scene_path: str, face_image_path: str, output_path: str) -> bool:
+def _set_single_attempt_env(attempt_idx: int) -> None:
     """
-    Calls perform_head_swap then forces output to original dimensions.
-    Returns True if output exists and is valid.
+    Force api_segmiod.py to generate only ONE preview (tryN) and return its path.
     """
-    result = perform_head_swap(
+    os.environ["SEGMIND_INTERACTIVE"] = "0"
+    os.environ["SEGMIND_SINGLE_ATTEMPT"] = "1"
+    os.environ["SEGMIND_ATTEMPT_INDEX"] = str(int(attempt_idx))
+
+
+def _clear_single_attempt_env() -> None:
+    """
+    Optional cleanup to avoid affecting other modules.
+    """
+    os.environ["SEGMIND_SINGLE_ATTEMPT"] = "0"
+    os.environ.pop("SEGMIND_ATTEMPT_INDEX", None)
+
+
+def _generate_single_attempt(scene_path: str, face_image_path: str, final_out_path: str, attempt_idx: int) -> str | None:
+    """
+    Runs ONE attempt using api_segmiod.perform_head_swap in SINGLE ATTEMPT MODE.
+    Returns preview path (base_tryN.ext) or None.
+    """
+    _set_single_attempt_env(attempt_idx)
+
+    preview_path = perform_head_swap(
         target_image_path=scene_path,
         face_image_path=face_image_path,
-        output_filename=output_path,
+        output_filename=final_out_path,
+        face_url_cached=None,
     )
 
-    if not result or not os.path.exists(output_path):
-        return False
+    if preview_path and os.path.exists(preview_path):
+        _ensure_same_dims_as_original(scene_path, preview_path)
+        return preview_path
 
-    _ensure_same_dims_as_original(scene_path, output_path)
-    return True
+    return None
 
 
-def _review_mode(api_map: dict, character_image_path: str, char_output_folder: str):
+def _slide_label_from_key(slide_key: str) -> str:
+    # slide_04 -> "slide 04"
+    if slide_key.startswith("slide_") and slide_key.replace("slide_", "").isdigit():
+        return f"slide {int(slide_key.replace('slide_', '')):02d}"
+    return slide_key.replace("_", " ")
+
+
+def _try_label(slide_key: str, attempt_idx: int) -> str:
+    # slide_04 + 2 -> "slide 04_try2"
+    base = _slide_label_from_key(slide_key)
+    return f"{base}_try{attempt_idx}"
+
+
+def _interactive_refine_before_pdf(api_map: dict, face_image_path: str):
     """
-    api_map: dict { "slide_08": {"scene": scene_path, "out": out_path} , ... }
-    Creates candidates and lets user choose.
+    api_map: {"slide_04": {"scene": path, "out": path}, ...}
+
+    Exact terminal flow requested:
+      choose any image you need to change?
+      1-slide 01
+      ...
+      input: 4
+      regnerating photo ....
+      done
+      do you like the result y/n?
+      y
+      okay choose any result you want to save :
+      1-slide 04_try1
+      2-slide 04_try2
+      input:2
+      done saved slide 04
+      do you want to retry with another photo?
+
+    NOTE:
+      Attempts are infinite here (attempt 1,2,3,...). No wrapping.
     """
-    print("\n" + "=" * 60)
-    print("🧪 Review Mode: اختار أي سلايد تعيد توليدها")
-    print("اكتب رقم السلايد (مثلاً 8) أو slide_08")
-    print("اكتب 0 لو خلاص وتكمل للـ PDF")
-    print("=" * 60)
+    if not api_map:
+        return
+
+    slides = sorted(api_map.keys())
 
     while True:
-        val = _safe_input("\n🎯 Slide to refine (0 to continue): ").strip()
-        if val in ("0", "q", "quit", "exit"):
-            print("✅ خروج من Review Mode.")
+        print("\nchoose any image you need to change? (n or 0 for exit)")
+        for i, s in enumerate(slides, 1):
+            print(f"{i}-{_slide_label_from_key(s)}")
+
+        raw = _safe_input("input: ").strip()
+        if raw.lower() in ("0", "q", "quit", "exit","n","no"):
+            _clear_single_attempt_env()
             return
 
-        slide_key = _parse_slide_input(val)
+        slide_key = None
+        if raw.isdigit():
+            idx = int(raw)
+            if 1 <= idx <= len(slides):
+                slide_key = slides[idx - 1]
+        if not slide_key:
+            slide_key = _parse_slide_key(raw)
+
         if not slide_key or slide_key not in api_map:
-            print("❌ سلايد غير موجود ضمن API slides. جرّب تاني.")
-            available = ", ".join(sorted(api_map.keys()))
-            print(f"   المتاح: {available}")
+            print("Invalid input.")
             continue
 
         scene_path = api_map[slide_key]["scene"]
         final_out = api_map[slide_key]["out"]
 
-        # Candidates folder
-        cand_dir = os.path.join(char_output_folder, "_review_candidates", slide_key)
-        os.makedirs(cand_dir, exist_ok=True)
-
-        candidates = []
-
-        print("\n" + "-" * 60)
-        print(f"🖼️ Refining: {slide_key}")
-        print(f"Scene: {os.path.basename(scene_path)}")
-        print(f"Final output: {os.path.basename(final_out)}")
-        print("-" * 60)
-        print("هولّد Candidates واحدة واحدة.")
-        print("بعد كل واحدة:")
-        print("  1) Generate another")
-        print("  2) Choose best from generated")
-        print("  3) Cancel refinement (keep old)")
-        print("-" * 60)
-
-        # IMPORTANT: make headswap interactive during review (so you can accept/retry inside)
-        os.environ["SEGMIND_INTERACTIVE"] = "1"
+        tries: list[str] = []
+        attempt = 1
 
         while True:
-            cand_idx = len(candidates) + 1
-            cand_path = os.path.join(cand_dir, f"{slide_key}_cand{cand_idx}.jpg")
+            print("regnerating photo ....")
+            preview = _generate_single_attempt(scene_path, face_image_path, final_out, attempt)
+            print("done")
 
-            print(f"\n✨ Generating candidate #{cand_idx} ...")
-            ok = _generate_one_output(scene_path, character_image_path, cand_path)
+            if preview:
+                tries.append(preview)
 
-            if not ok:
-                print("❌ فشل توليد Candidate. جرّب تاني.")
-            else:
-                candidates.append(cand_path)
-                print(f"✅ Candidate saved: {cand_path}")
-
-            action = _safe_input("Choose (1=more, 2=select, 3=cancel): ").strip()
-
-            if action == "1":
+            yn = _safe_input("do you like the result y/n?\n").strip().lower()
+            if yn != "y":
+                attempt += 1
                 continue
 
-            if action == "3":
-                print("↩️ Cancel refinement. Keeping old output.")
-                break
+            print("okay choose any result you want to save :")
+            for i, _p in enumerate(tries, 1):
+                # list tries in the same order they were generated
+                print(f"{i}-{_try_label(slide_key, i)}")
 
-            if action == "2":
-                if not candidates:
-                    print("❌ مفيش Candidates لسه.")
-                    continue
+            pick_raw = _safe_input("input:").strip()
+            pick = int(pick_raw) if pick_raw.isdigit() else len(tries)
+            if pick < 1 or pick > len(tries):
+                pick = len(tries)
 
-                print("\n📌 Candidates:")
-                for i, p in enumerate(candidates, 1):
-                    print(f"  {i}) {p}")
+            chosen_path = tries[pick - 1]
+            shutil.copyfile(chosen_path, final_out)
+            _ensure_same_dims_as_original(scene_path, final_out)
 
-                pick = _safe_input("Select best candidate number: ").strip()
-                if not pick.isdigit() or not (1 <= int(pick) <= len(candidates)):
-                    print("❌ اختيار غلط.")
-                    continue
+            print(f"done saved {_slide_label_from_key(slide_key)}")
+            break
 
-                chosen = candidates[int(pick) - 1]
-
-                # Replace final output with chosen
-                os.makedirs(os.path.dirname(final_out) or ".", exist_ok=True)
-                shutil.copyfile(chosen, final_out)
-
-                # Force dims again for safety
-                _ensure_same_dims_as_original(scene_path, final_out)
-
-                print(f"🎉 Selected ✅ {chosen}")
-                print(f"✅ Updated final: {final_out}")
-                break
-
-            print("❌ اختيار غلط. جرّب 1 أو 2 أو 3.")
+        nxt = _safe_input("do you want to retry with another photo?\n").strip().lower()
+        if nxt in ("0", "q", "quit", "exit", "n", "no"):
+            _clear_single_attempt_env()
+            return
+        # otherwise loop continues and user can pick another slide from menu
 
 
 def process_head_swap(clean_images_folder, character_image_path, character_name, story_folder, prompts_dict=None, use_parallel=None):
     """
     Generate head-swapped slides:
-      - Batch generate all API slides (non-interactive)
-      - Copy normal slides
-      - Then Review Mode: user can refine selected slide(s) by generating candidates and choosing best.
+      1) Batch generate all API slides (Attempt 1 only)
+      2) Copy normal slides
+      3) Interactive refine BEFORE PDF (infinite attempts)
+      4) Reload outputs and return images dict
 
     Returns:
       (processed_images_dict, original_dims_dict)
@@ -398,11 +432,7 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
     processed_images_dict = {}
     original_dims_dict = {}
 
-    # Keep map for review mode (API only)
     api_map = {}
-
-    # Batch mode: no interactive input while generating all slides
-    os.environ["SEGMIND_INTERACTIVE"] = "0"
 
     print(f"\n📊 Total images: {len(all_images)} | API: {len(api_images)} | Normal: {len(normal_images)}")
 
@@ -419,17 +449,17 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
             if orig_w and orig_h:
                 original_dims_dict[name_no_ext] = (orig_w, orig_h)
 
-        # If exists, reuse
+        if is_api:
+            api_map[name_no_ext] = {"scene": src_path, "out": out_path}
+
+        # reuse if already exists
         if os.path.exists(out_path):
             img = cv2.imread(out_path)
             if img is not None:
                 processed_images_dict[name_no_ext] = img
-
-            if is_api:
-                api_map[name_no_ext] = {"scene": src_path, "out": out_path}
             continue
 
-        # Normal image: copy
+        # Normal image: copy as-is
         if not is_api:
             img = cv2.imread(src_path)
             if img is not None:
@@ -437,26 +467,33 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
                 processed_images_dict[name_no_ext] = img
             continue
 
-        # API image: generate once (non-interactive)
-        print(f"\n🧩 Generating (batch): {filename}")
-        ok = _generate_one_output(src_path, character_image_path, out_path)
-        if ok:
-            img = cv2.imread(out_path)
-            if img is not None:
-                processed_images_dict[name_no_ext] = img
+        # API image: batch attempt 1
+        print(f"\n🧩 Generating (batch attempt_1): {filename}")
+        _set_single_attempt_env(1)
 
-        api_map[name_no_ext] = {"scene": src_path, "out": out_path}
+        cand = perform_head_swap(
+            target_image_path=src_path,
+            face_image_path=character_image_path,
+            output_filename=out_path,
+            face_url_cached=None,
+        )
+
+        if cand and os.path.exists(cand):
+            shutil.copyfile(cand, out_path)
+            _ensure_same_dims_as_original(src_path, out_path)
+
+        img = cv2.imread(out_path)
+        if img is not None:
+            processed_images_dict[name_no_ext] = img
 
         if HEAD_SWAP_DELAY and HEAD_SWAP_DELAY > 0:
             time.sleep(HEAD_SWAP_DELAY)
 
-    # ---------------------------
-    # Review mode (after all done)
-    # ---------------------------
+    # Interactive refine BEFORE PDF (infinite attempts)
     if api_map:
-        _review_mode(api_map=api_map, character_image_path=character_image_path, char_output_folder=char_output_folder)
+        _interactive_refine_before_pdf(api_map=api_map, face_image_path=character_image_path)
 
-        # Reload any updated outputs (after review selection)
+        # Reload updated outputs
         for slide_key, meta in api_map.items():
             outp = meta["out"]
             if os.path.exists(outp):
@@ -464,4 +501,5 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
                 if img is not None:
                     processed_images_dict[slide_key] = img
 
+    _clear_single_attempt_env()
     return (processed_images_dict, original_dims_dict) if processed_images_dict else (None, None)

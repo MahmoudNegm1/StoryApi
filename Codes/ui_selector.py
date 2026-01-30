@@ -144,9 +144,19 @@ def show_character_images(gender_folder):
         print("✂️  Cropping face...")
         os.makedirs(TEMP_CROPPED_FOLDER, exist_ok=True)
         cropped_image_path = os.path.join(TEMP_CROPPED_FOLDER, f"cropped_{selected_image}")
+        print("\n" + "="*70)
+        print("[DEBUG] TEMP_CROPPED_FOLDER:", TEMP_CROPPED_FOLDER)
+        print("[DEBUG] cropped_image_path:", cropped_image_path)
+        print("="*70 + "\n")
+
 
         try:
             result_path = crop_face_only(selected_image_path, cropped_image_path, padding=2)
+            print("\n" + "="*70)    
+            print("[DEBUG] crop_face_only returned:", result_path)  
+            print("[DEBUG] exists on disk:", os.path.exists(result_path) if result_path else False)
+            print("="*70 + "\n")
+
         except Exception:
             result_path = None
 

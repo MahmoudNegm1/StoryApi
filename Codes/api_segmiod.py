@@ -1,29 +1,35 @@
 # -*- coding: utf-8 -*-
 """
-🌐 Segmind - Hybrid Pipeline (FLUX PRO back ✅)
+🌐 Segmind - FaceSwap Only (INFINITE)
 
 ✅ Same signature:
    perform_head_swap(target_image_path, face_image_path, output_filename, face_url_cached=None)
 
-Flow (8 attempts total):
-  Attempt 1-3: flux-2-pro with prompt_1..prompt_3
-  Attempt 4-5: faceswap-v5 (no prompt)
-  Attempt 6-8: flux-2-klein-4b with prompt_1..prompt_3
+Behavior:
+- Uses ONLY faceswap-v5 (no prompts, no flux/klein).
+- Interactive mode (SEGMIND_INTERACTIVE=1):
+    infinite attempts until user accepts.
+- Non-interactive mode (SEGMIND_INTERACTIVE=0):
+    runs a finite number of attempts (default: 8) and saves last successful.
+    You can control this with:
+      SEGMIND_MAX_ATTEMPTS=8  (or any int)
 
-Interactive controlled by ENV:
-  SEGMIND_INTERACTIVE=1  -> asks user accept/retry
-  SEGMIND_INTERACTIVE=0  -> no input; runs all attempts and saves last successful as final
+Single attempt mode:
+- SEGMIND_SINGLE_ATTEMPT=1
+- SEGMIND_ATTEMPT_INDEX=1..∞  (any positive integer)
+- Generates only that attempt preview and returns its path.
 
-Notes:
-- Upload happens ONCE (target + face) to Segmind Storage and reused across all attempts.
-- face_url_cached can be used to skip face upload (pass a Segmind URL).
-- Safe input prevents EOFError (common in workers / redirected stdin).
+Caching:
+- Saves uploaded target/face URLs to json next to output file to avoid re-uploading.
+
+Safe input prevents EOFError.
 """
 
 import os
 import time
 import base64
 import shutil
+import json
 import requests
 
 from Codes.config import (
@@ -32,37 +38,66 @@ from Codes.config import (
     SEGMIND_SEED,      # int or None
 )
 
-SEGMIND_FLUX2_PRO_URL       = "https://api.segmind.com/v1/flux-2-pro"
-SEGMIND_FACESWAP_V5_URL     = "https://api.segmind.com/v1/faceswap-v5"
-SEGMIND_FLUX2_KLEIN_4B_URL  = "https://api.segmind.com/v1/flux-2-klein-4b"
+SEGMIND_FACESWAP_V5_URL = "https://api.segmind.com/v1/faceswap-v5"
 
 
 # ---------------------------
-# Helpers
+# Helpers (env)
 # ---------------------------
 def _is_interactive() -> bool:
-    return os.getenv("SEGMIND_INTERACTIVE", "1").strip() in ("1", "true", "True", "yes", "YES")
+    return os.getenv("SEGMIND_INTERACTIVE", "1").strip().lower() in ("1", "true", "yes", "y")
 
 
-def _pick_size_from_target(target_w: int, target_h: int, max_mp: int = 4_000_000) -> tuple[int, int]:
-    """flux-2-pro: keep ratio, cap to ~4MP."""
-    if target_w <= 0 or target_h <= 0:
-        return (1024, 1024)
-
-    pixels = target_w * target_h
-    if pixels <= max_mp:
-        return (target_w, target_h)
-
-    scale = (max_mp / pixels) ** 0.5
-    w = int(target_w * scale)
-    h = int(target_h * scale)
-
-    # even dims
-    w = max(256, (w // 2) * 2)
-    h = max(256, (h // 2) * 2)
-    return (w, h)
+def _is_single_attempt() -> bool:
+    return os.getenv("SEGMIND_SINGLE_ATTEMPT", "0").strip().lower() in ("1", "true", "yes", "y")
 
 
+def _get_attempt_index_from_env() -> int:
+    v = (os.getenv("SEGMIND_ATTEMPT_INDEX", "") or "").strip()
+    if v.isdigit():
+        n = int(v)
+        return max(1, n)
+    return 1
+
+
+def _get_max_attempts_non_interactive(default: int = 8) -> int:
+    v = (os.getenv("SEGMIND_MAX_ATTEMPTS", "") or "").strip()
+    if v.isdigit():
+        return max(1, int(v))
+    return default
+
+
+# ---------------------------
+# Cache helpers (URLs)
+# ---------------------------
+def _cache_path_for(output_filename: str) -> str:
+    base, _ = os.path.splitext(output_filename)
+    return base + "_segmind_cache.json"
+
+
+def _load_cache(output_filename: str) -> dict:
+    p = _cache_path_for(output_filename)
+    if os.path.exists(p):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f) or {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_cache(output_filename: str, cache: dict) -> None:
+    p = _cache_path_for(output_filename)
+    try:
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+# ---------------------------
+# Segmind storage upload
+# ---------------------------
 def _upload_to_segmind_storage(image_path: str, retries: int = 3, wait_sec: int = 3) -> str | None:
     if not os.path.exists(image_path):
         print(f"   ❌ File not found: {image_path}")
@@ -95,13 +130,10 @@ def _upload_to_segmind_storage(image_path: str, retries: int = 3, wait_sec: int 
     return None
 
 
+# ---------------------------
+# Segmind response save
+# ---------------------------
 def _save_response_to_file(resp: requests.Response, output_path: str, timeout: int) -> bool:
-    """
-    Supports:
-      - direct image bytes response (Content-Type: image/*)
-      - JSON with output url / image url
-      - JSON with base64 (best-effort)
-    """
     ctype = (resp.headers.get("Content-Type") or "").lower()
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
@@ -157,7 +189,6 @@ def _save_response_to_file(resp: requests.Response, output_path: str, timeout: i
 
 
 def _safe_input(prompt: str) -> str:
-    """Prevents crashing with EOFError (common inside multiprocessing workers)."""
     try:
         return input(prompt)
     except EOFError:
@@ -166,14 +197,13 @@ def _safe_input(prompt: str) -> str:
         return ""
 
 
-def _ask_user_choice(image_path: str, attempt_num: int, max_attempts: int, label: str) -> int:
-    # Non-interactive mode: always "retry next attempt"
+def _ask_user_choice(image_path: str, attempt_num: int, label: str) -> int:
     if not _is_interactive():
         return 2
 
     print("\n" + "=" * 60)
     print(f"🖼️  Preview saved: {image_path}")
-    print(f"{label}  |  Attempt {attempt_num}/{max_attempts}")
+    print(f"{label}  |  Attempt {attempt_num}")
     print("Choose:")
     print("  1) ✅ Yes, I like it (accept)")
     print("  2) ❌ No, retry next attempt")
@@ -181,34 +211,17 @@ def _ask_user_choice(image_path: str, attempt_num: int, max_attempts: int, label
 
     while True:
         val = _safe_input("Enter 1 or 2: ").strip()
-
-        # If stdin not available -> keep going
         if val == "":
             print("   ⚠️ No stdin available (EOF). Defaulting to: 2 (retry next attempt)")
             return 2
-
         if val in ("1", "2"):
             return int(val)
-
         print("Invalid input. Please enter 1 or 2.")
 
 
 # ---------------------------
-# API Calls
+# API Call (faceswap-v5 only)
 # ---------------------------
-def _call_flux2_pro(target_url: str, face_url: str, prompt: str, seed: int, width: int, height: int, timeout: int) -> requests.Response:
-    headers = {"x-api-key": SEGMIND_API_KEY, "Content-Type": "application/json"}
-    data = {
-        "image_urls": [target_url, face_url],
-        "prompt": prompt,
-        "seed": int(seed),
-        "width": int(width),
-        "height": int(height),
-        "output_format": "png",
-    }
-    return requests.post(SEGMIND_FLUX2_PRO_URL, headers=headers, json=data, timeout=timeout)
-
-
 def _call_faceswap_v5(target_url: str, face_url: str, seed: int, timeout: int) -> requests.Response:
     headers = {"x-api-key": SEGMIND_API_KEY, "Content-Type": "application/json"}
     data = {
@@ -219,27 +232,6 @@ def _call_faceswap_v5(target_url: str, face_url: str, seed: int, timeout: int) -
         "quality": 95,
     }
     return requests.post(SEGMIND_FACESWAP_V5_URL, headers=headers, json=data, timeout=timeout)
-
-
-def _call_flux2_klein_4b(target_url: str, face_url: str, prompt: str, seed: int, timeout: int) -> requests.Response:
-    headers = {"x-api-key": SEGMIND_API_KEY, "Content-Type": "application/json"}
-    data = {
-        "prompt": prompt,
-        "image_urls": [target_url, face_url],
-        "negative_prompt": (
-            "floating head, disconnected head, extra head, extra face, wrong identity, "
-            "mismatched head size, visible neck seam, distorted features, low quality, blurry"
-        ),
-        "seed": int(seed),
-        "cfg": 5,
-        "sampler": "euler",
-        "steps": 20,
-        "aspect_ratio": "16:9",
-        "go_fast": True,
-        "image_format": "png",
-        "quality": 90,
-    }
-    return requests.post(SEGMIND_FLUX2_KLEIN_4B_URL, headers=headers, json=data, timeout=timeout)
 
 
 # ---------------------------
@@ -253,9 +245,10 @@ def perform_head_swap(
 ):
     """
     DO NOT change signature.
-    In non-interactive mode:
-      - runs all attempts
-      - if any attempt succeeded -> uses LAST successful preview as final output_filename
+
+    Returns:
+      - In normal mode: final output_filename path if accepted/saved, else None (only if all failed)
+      - In single attempt mode: preview path (NOT final), or None
     """
     try:
         if not os.path.exists(target_image_path):
@@ -265,122 +258,122 @@ def perform_head_swap(
             print(f"   ❌ Face not found: {face_image_path}")
             return None
 
-        # Read target size (for flux-2-pro width/height)
-        try:
-            from PIL import Image
-            with Image.open(target_image_path) as im:
-                tw, th = im.size
-        except Exception:
-            tw, th = (1024, 1024)
+        base_name, base_ext = os.path.splitext(output_filename)
+        if not base_ext:
+            base_ext = ".png"
 
-        req_w, req_h = _pick_size_from_target(tw, th)
+        seed_base = SEGMIND_SEED if SEGMIND_SEED is not None else 42
 
-        # Upload ONCE
-        print("   ☁️  Uploading target to Segmind Storage...")
-        target_url = _upload_to_segmind_storage(target_image_path)
+        # ---------------------------
+        # Load cache (urls)
+        # ---------------------------
+        cache = _load_cache(output_filename)
+
+        target_url = cache.get("target_url")
+        face_url = cache.get("face_url")
+
         if not target_url:
-            print("   ❌ Failed to upload target")
-            return None
+            print("   ☁️  Uploading target to Segmind Storage...")
+            target_url = _upload_to_segmind_storage(target_image_path)
+            if not target_url:
+                print("   ❌ Failed to upload target")
+                return None
+            cache["target_url"] = target_url
+            _save_cache(output_filename, cache)
 
         if face_url_cached:
             face_url = face_url_cached
-        else:
+            cache["face_url"] = face_url
+            _save_cache(output_filename, cache)
+
+        if not face_url:
             print("   ☁️  Uploading face to Segmind Storage...")
             face_url = _upload_to_segmind_storage(face_image_path)
             if not face_url:
                 print("   ❌ Failed to upload face")
                 return None
+            cache["face_url"] = face_url
+            _save_cache(output_filename, cache)
 
-        # Prompts
-        fluxpro_prompts = [
-            (
-                "High-fidelity face swap edit prioritizing exact identity preservation within a specific scene.\n"
-                "Use the provided TARGET image as the foundation for the body, clothing, pose, hair, background, lighting, and overall art style.\n"
-                "Use the provided REFERENCE image solely as the source for facial identity.\n"
-                "ACTION: Replace the head/face in the TARGET image with the facial identity of the REFERENCE.\n"
-                "CRITICAL CONSTRAINT (IDENTITY): Strictly maintain the exact facial structures, eye shape, nose, mouth, and unique likeness of the REFERENCE.\n"
-                "INTEGRATION & STYLE: Seamlessly blend the REFERENCE face onto the TARGET body. Match skin tone, lighting, shadows, texture, and the target rendering style. Keep original hair/clothing unchanged."
-            ),
-            (
-                "Replace ONLY the head/face with the REFERENCE identity. Keep body, outfit, pose, background unchanged. "
-                "Ensure perfect alignment, painterly consistency, correct head scale, and natural neck transition with no seam."
-            ),
-            (
-                "Strict head swap: preserve the REFERENCE likeness exactly, match the target’s art style and warm lighting, "
-                "and blend cleanly at the neck. Do not modify the dress, body, pose, or background."
-            ),
-        ]
-
-        klein_prompts = [
-            (
-                "High-fidelity, STRICT HEAD SWAP edit with exact identity preservation and seamless integration.\n"
-                "Use the provided TARGET image as the rigid foundation. Keep body, dress, pose, background, and lighting unchanged.\n"
-                "Use the provided REFERENCE image as the sole source for the new head (face + hair).\n"
-                "ACTION: Replace the head completely with the REFERENCE girl's head and hair, aligned to the original head position.\n"
-                "CRITICAL: preserve exact identity; match the painted style; avoid generic cartoon.\n"
-                "INTEGRATION: match warm lighting and shadows; seamless neck blend."
-            ),
-            (
-                "Replace only the head, preserving all facial features and hair. "
-                "Match the original image's colors, lighting and painted style. "
-                "Make it seamless and natural with no neck seam."
-            ),
-            (
-                "Perform a clean head swap: take the girl's head from the reference and integrate it into the target scene. "
-                "Preserve her exact identity and hair, match the target lighting and painterly style, "
-                "and ensure perfect alignment and blending with the neck."
-            ),
-        ]
-
-        base_name, base_ext = os.path.splitext(output_filename)
-        if not base_ext:
-            base_ext = ".png"
-
-        total_attempts = 8
-        seed_base = SEGMIND_SEED if SEGMIND_SEED is not None else 42
-
-        print(f"   📐 Target: {tw}x{th} | flux-2-pro request: {req_w}x{req_h}")
-        last_success_preview = None
-
-        # Attempts 1-3: FLUX PRO
-        for k in range(1, 4):
-            attempt_num = k
+        # ---------------------------
+        # SINGLE ATTEMPT MODE (any N)
+        # ---------------------------
+        if _is_single_attempt():
+            attempt_num = _get_attempt_index_from_env()
             preview_path = f"{base_name}_try{attempt_num}{base_ext}"
-            prompt = fluxpro_prompts[k - 1].strip() or "High quality. Preserve identity. Match lighting."
             attempt_seed = seed_base + (attempt_num - 1)
 
-            print(f"\n🚀 Attempt {attempt_num}/{total_attempts} (flux-2-pro) | prompt_{k}")
-            resp = _call_flux2_pro(target_url, face_url, prompt, attempt_seed, req_w, req_h, SEGMIND_TIMEOUT)
+            print(f"\n🚀 Single Attempt {attempt_num} (faceswap-v5)")
+            resp = _call_faceswap_v5(target_url, face_url, attempt_seed, SEGMIND_TIMEOUT)
 
             if resp.status_code != 200:
-                print(f"   ❌ Segmind flux-2-pro error: {resp.status_code}")
+                print(f"   ❌ Segmind faceswap-v5 error: {resp.status_code}")
                 try:
                     print(resp.text[:800])
                 except Exception:
                     pass
-                continue
+                return None
 
             if not _save_response_to_file(resp, preview_path, SEGMIND_TIMEOUT):
-                print("   ❌ Could not save flux-2-pro preview.")
-                continue
+                print("   ❌ Could not save preview.")
+                return None
 
-            last_success_preview = preview_path
+            print(f"✅ Single attempt preview saved: {preview_path}")
+            return preview_path
 
-            # interactive accept?
-            choice = _ask_user_choice(preview_path, attempt_num, total_attempts, label=f"flux-2-pro (prompt_{k})")
-            if choice == 1:
-                os.makedirs(os.path.dirname(output_filename) or ".", exist_ok=True)
-                shutil.copyfile(preview_path, output_filename)
-                print(f"\n🎉 Accepted ✅ Final saved as: {output_filename}")
-                return output_filename
+        # ---------------------------
+        # NORMAL MODE
+        # - Interactive: infinite until accept
+        # - Non-interactive: finite, save last success
+        # ---------------------------
+        last_success_preview = None
 
-        # Attempts 4-5: FaceSwap
-        for i in range(4, 6):
-            attempt_num = i
+        if _is_interactive():
+            print("\n" + "=" * 70)
+            print("♾️  FaceSwap Only mode is ACTIVE (faceswap-v5).")
+            print("➡️  Infinite attempts until you accept.")
+            print("=" * 70)
+
+            attempt_num = 1
+            while True:
+                preview_path = f"{base_name}_try{attempt_num}{base_ext}"
+                attempt_seed = seed_base + (attempt_num - 1)
+
+                print(f"\n🚀 Attempt {attempt_num} (faceswap-v5) [INFINITE]")
+                resp = _call_faceswap_v5(target_url, face_url, attempt_seed, SEGMIND_TIMEOUT)
+
+                if resp.status_code != 200:
+                    print(f"   ❌ Segmind faceswap-v5 error: {resp.status_code}")
+                    try:
+                        print(resp.text[:800])
+                    except Exception:
+                        pass
+                    attempt_num += 1
+                    continue
+
+                if not _save_response_to_file(resp, preview_path, SEGMIND_TIMEOUT):
+                    print("   ❌ Could not save faceswap preview.")
+                    attempt_num += 1
+                    continue
+
+                last_success_preview = preview_path
+                choice = _ask_user_choice(preview_path, attempt_num, label="faceswap-v5")
+
+                if choice == 1:
+                    os.makedirs(os.path.dirname(output_filename) or ".", exist_ok=True)
+                    shutil.copyfile(preview_path, output_filename)
+                    print(f"\n🎉 Accepted ✅ Final saved as: {output_filename}")
+                    return output_filename
+
+                attempt_num += 1
+
+        # Non-interactive finite loop
+        max_attempts = _get_max_attempts_non_interactive(default=8)
+        for attempt_num in range(1, max_attempts + 1):
             preview_path = f"{base_name}_try{attempt_num}{base_ext}"
             attempt_seed = seed_base + (attempt_num - 1)
 
-            print(f"\n🚀 Attempt {attempt_num}/{total_attempts} (faceswap-v5)")
+            print(f"\n🚀 Attempt {attempt_num}/{max_attempts} (faceswap-v5) [NON-INTERACTIVE]")
             resp = _call_faceswap_v5(target_url, face_url, attempt_seed, SEGMIND_TIMEOUT)
 
             if resp.status_code != 200:
@@ -397,52 +390,13 @@ def perform_head_swap(
 
             last_success_preview = preview_path
 
-            choice = _ask_user_choice(preview_path, attempt_num, total_attempts, label="faceswap-v5")
-            if choice == 1:
-                os.makedirs(os.path.dirname(output_filename) or ".", exist_ok=True)
-                shutil.copyfile(preview_path, output_filename)
-                print(f"\n🎉 Accepted ✅ Final saved as: {output_filename}")
-                return output_filename
-
-        # Attempts 6-8: Klein
-        for k in range(1, 4):
-            attempt_num = 5 + k
-            preview_path = f"{base_name}_try{attempt_num}{base_ext}"
-            prompt = klein_prompts[k - 1].strip() or "High quality. Preserve identity. Match lighting."
-            attempt_seed = seed_base + (attempt_num - 1)
-
-            print(f"\n🚀 Attempt {attempt_num}/{total_attempts} (flux-2-klein-4b) | prompt_{k}")
-            resp = _call_flux2_klein_4b(target_url, face_url, prompt, attempt_seed, SEGMIND_TIMEOUT)
-
-            if resp.status_code != 200:
-                print(f"   ❌ Segmind flux-2-klein-4b error: {resp.status_code}")
-                try:
-                    print(resp.text[:800])
-                except Exception:
-                    pass
-                continue
-
-            if not _save_response_to_file(resp, preview_path, SEGMIND_TIMEOUT):
-                print("   ❌ Could not save flux-2-klein-4b preview.")
-                continue
-
-            last_success_preview = preview_path
-
-            choice = _ask_user_choice(preview_path, attempt_num, total_attempts, label=f"flux-2-klein-4b (prompt_{k})")
-            if choice == 1:
-                os.makedirs(os.path.dirname(output_filename) or ".", exist_ok=True)
-                shutil.copyfile(preview_path, output_filename)
-                print(f"\n🎉 Accepted ✅ Final saved as: {output_filename}")
-                return output_filename
-
-        # Non-interactive fallback: use last successful
         if last_success_preview and os.path.exists(last_success_preview):
             os.makedirs(os.path.dirname(output_filename) or ".", exist_ok=True)
             shutil.copyfile(last_success_preview, output_filename)
             print(f"\n✅ Non-interactive: saved last successful preview as final: {output_filename}")
             return output_filename
 
-        print("\n❌ Reached max attempts without any successful output.")
+        print("\n❌ No successful output produced.")
         return None
 
     except requests.exceptions.Timeout:

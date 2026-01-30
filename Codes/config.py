@@ -44,6 +44,8 @@ AR_REST_SLIDES_FONT = os.path.join(BASE_DIR, "Fonts/arabic fonts/alfont_com_Al-H
 #==================Openai Conf=====================
 
 OPENAI_API_KEY = "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"
+OPENAI_API_KEY = "sk-"
+
 OPENAI_MODEL = "gpt-4o"
 # ================== Folder Paths ==================
 STORIES_FOLDER = os.path.join(BASE_DIR, "Stories")
@@ -72,7 +74,7 @@ SIMILARITY_THRESHOLD = 0.97  # Threshold for considering face unchanged (0.0 to 
 # ================== Parallel Processing Settings ==================
 API_WORKERS = 3       # Number of simultaneous API calls
 UPLOAD_WORKERS = 5    # Number of simultaneous image uploads
-USE_PARALLEL_TEXT_PROCESSING = True  # Enable parallel text rendering
+USE_PARALLEL_TEXT_PROCESSING = False  # Enable parallel text rendering
 from multiprocessing import cpu_count
 MAX_TEXT_WORKERS = max(1, cpu_count() - 1)  # Number of parallel workers for text processing
 
