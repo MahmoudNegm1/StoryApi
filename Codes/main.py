@@ -13,8 +13,8 @@ import sys
 import os
 from PySide6.QtWidgets import QApplication
 
-from .config import RESULT_FOLDER, USE_PARALLEL_TEXT_PROCESSING, BASE_DIR
-from utils import read_info_file
+from Codes.config import RESULT_FOLDER, USE_PARALLEL_TEXT_PROCESSING, BASE_DIR
+from Codes.utils import read_info_file
 from ui_selector import (
     select_language,
     select_gender,
@@ -22,9 +22,9 @@ from ui_selector import (
     show_character_images,
     get_user_name,
 )
-from text_handler import load_custom_fonts, read_text_data
-from image_processor import process_head_swap, apply_text_to_images, apply_resolution_to_images
-from pdf_generator import create_pdf_from_images
+from Codes.text_handler import load_custom_fonts, read_text_data
+from Codes.image_processor import process_head_swap, apply_text_to_images, apply_resolution_to_images
+from Codes.pdf_generator import create_pdf_from_images
 
 
 def _print_header():
