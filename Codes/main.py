@@ -13,7 +13,7 @@ import sys
 import os
 from PySide6.QtWidgets import QApplication
 
-from config import RESULT_FOLDER, USE_PARALLEL_TEXT_PROCESSING, BASE_DIR
+from .config import RESULT_FOLDER, USE_PARALLEL_TEXT_PROCESSING, BASE_DIR
 from utils import read_info_file
 from ui_selector import (
     select_language,
