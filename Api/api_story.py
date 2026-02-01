@@ -850,6 +850,7 @@ async def generate_story_pdf(
                 "slides": len(ordered_names),
             }
         )
+    
 
     except Exception as e:
         logger.exception("Endpoint failed")
