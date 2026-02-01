@@ -21,7 +21,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from config import (
+from Codes.config import (
     ENABLE_TEXT_SHADOW,
     SHADOW_BLUR_RADIUS,
     SHADOW_COLOR,

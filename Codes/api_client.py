@@ -14,7 +14,7 @@ import mimetypes
 import hashlib
 import requests
 
-from config import (
+from Codes.config import (
     WAVESPEED_API_KEY,
     NANO_BANANA_API_URL,
     NANO_BANANA_RESOLUTION,      # "1k" | "2k" | "4k" for edit, or "4k" | "8k" for edit-ultra

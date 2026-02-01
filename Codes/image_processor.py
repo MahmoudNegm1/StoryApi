@@ -141,7 +141,7 @@ def apply_text_to_images(
     first_slide_font=None,
     rest_slides_font=None,
 ):
-    from config import USE_PARALLEL_TEXT_PROCESSING
+    from Codes.config import USE_PARALLEL_TEXT_PROCESSING
 
     if use_parallel is None:
         use_parallel = USE_PARALLEL_TEXT_PROCESSING
@@ -214,8 +214,8 @@ def _restore_image_worker(args):
 
 def _apply_text_parallel(images_dict, text_data, original_dims_dict, language, first_slide_font=None, rest_slides_font=None):
     from multiprocessing import Pool
-    from config import MAX_TEXT_WORKERS, BASE_DIR
-    from parallel_text_processor import apply_text_parallel
+    from Codes.config import MAX_TEXT_WORKERS, BASE_DIR
+    from Codes.parallel_text_processor import apply_text_parallel
 
     restored_images = {}
     restore_tasks = []
@@ -238,7 +238,7 @@ def _apply_text_parallel(images_dict, text_data, original_dims_dict, language, f
         first_font_path = os.path.join(BASE_DIR, first_slide_font) if not os.path.isabs(first_slide_font) else first_slide_font
         rest_font_path = os.path.join(BASE_DIR, rest_slides_font) if not os.path.isabs(rest_slides_font) else rest_slides_font
     else:
-        from config import EN_FIRST_SLIDE_FONT, EN_REST_SLIDES_FONT, AR_FIRST_SLIDE_FONT, AR_REST_SLIDES_FONT
+        from Codes.config import EN_FIRST_SLIDE_FONT, EN_REST_SLIDES_FONT, AR_FIRST_SLIDE_FONT, AR_REST_SLIDES_FONT
         if language == "en":
             first_font_path = EN_FIRST_SLIDE_FONT
             rest_font_path = EN_REST_SLIDES_FONT
@@ -400,23 +400,16 @@ def _interactive_refine_before_pdf(api_map: dict, face_image_path: str):
             _clear_single_attempt_env()
             return
         # otherwise loop continues and user can pick another slide from menu
-
+from PIL import Image
 
 def process_head_swap(clean_images_folder, character_image_path, character_name, story_folder, prompts_dict=None, use_parallel=None):
-    """
-    Generate head-swapped slides:
-      1) Batch generate all API slides (Attempt 1 only)
-      2) Copy normal slides
-      3) Interactive refine BEFORE PDF (infinite attempts)
-      4) Reload outputs and return images dict
-
-    Returns:
-      (processed_images_dict, original_dims_dict)
-    """
+    from PIL import Image
     head_swap_folder = os.path.join(story_folder, "Head_swap")
     os.makedirs(head_swap_folder, exist_ok=True)
 
-    char_output_folder = os.path.join(head_swap_folder, character_name)
+    # Use uploaded image name for folder
+    uploaded_name = os.path.splitext(os.path.basename(character_image_path))[0]
+    char_output_folder = os.path.join(head_swap_folder, uploaded_name)
     os.makedirs(char_output_folder, exist_ok=True)
 
     api_images_folder = os.path.join(story_folder, "api_images")
@@ -427,14 +420,9 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
 
     all_images = sorted(api_images + normal_images)
     if not all_images:
-        return None, None
+        return []
 
-    processed_images_dict = {}
-    original_dims_dict = {}
-
-    api_map = {}
-
-    print(f"\n📊 Total images: {len(all_images)} | API: {len(api_images)} | Normal: {len(normal_images)}")
+    output_list = []
 
     for filename in all_images:
         name_no_ext = os.path.splitext(filename)[0]
@@ -443,63 +431,142 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
         is_api = filename in api_images
         src_path = os.path.join(api_images_folder if is_api else normal_images_folder, filename)
 
-        dims = get_image_dimensions(src_path)
-        if dims:
-            orig_w, orig_h = dims
-            if orig_w and orig_h:
-                original_dims_dict[name_no_ext] = (orig_w, orig_h)
+        # Skip if already exists
+        if not os.path.exists(out_path):
+            if is_api:
+                from Codes.api_segmiod import perform_head_swap
+                os.environ["SEGMIND_INTERACTIVE"] = "0"
+                os.environ["SEGMIND_SINGLE_ATTEMPT"] = "1"
+                os.environ["SEGMIND_ATTEMPT_INDEX"] = "1"
 
-        if is_api:
-            api_map[name_no_ext] = {"scene": src_path, "out": out_path}
+                preview = perform_head_swap(
+                    target_image_path=src_path,
+                    face_image_path=character_image_path,
+                    output_filename=out_path,
+                    face_url_cached=None,
+                )
+                if preview and os.path.exists(preview):
+                    out_path = preview
 
-        # reuse if already exists
-        if os.path.exists(out_path):
-            img = cv2.imread(out_path)
-            if img is not None:
-                processed_images_dict[name_no_ext] = img
+                os.environ["SEGMIND_SINGLE_ATTEMPT"] = "0"
+                os.environ.pop("SEGMIND_ATTEMPT_INDEX", None)
+            else:
+                shutil.copyfile(src_path, out_path)
+
+        try:
+            img = Image.open(out_path).convert("RGB")
+        except Exception:
             continue
 
-        # Normal image: copy as-is
-        if not is_api:
-            img = cv2.imread(src_path)
-            if img is not None:
-                cv2.imwrite(out_path, img)
-                processed_images_dict[name_no_ext] = img
-            continue
+        output_list.append({
+            "name": name_no_ext,
+            "path": out_path,
+            "image": img
+        })
 
-        # API image: batch attempt 1
-        print(f"\n🧩 Generating (batch attempt_1): {filename}")
-        _set_single_attempt_env(1)
+    return output_list
 
-        cand = perform_head_swap(
-            target_image_path=src_path,
-            face_image_path=character_image_path,
-            output_filename=out_path,
-            face_url_cached=None,
-        )
+# def process_head_swap(clean_images_folder, character_image_path, character_name, story_folder, prompts_dict=None, use_parallel=None):
+#     """
+#     Generate head-swapped slides:
+#       1) Batch generate all API slides (Attempt 1 only)
+#       2) Copy normal slides
+#       3) Interactive refine BEFORE PDF (infinite attempts)
+#       4) Reload outputs and return images dict
 
-        if cand and os.path.exists(cand):
-            shutil.copyfile(cand, out_path)
-            _ensure_same_dims_as_original(src_path, out_path)
+#     Returns:
+#       (processed_images_dict, original_dims_dict)
+#     """
+#     head_swap_folder = os.path.join(story_folder, "Head_swap")
+#     os.makedirs(head_swap_folder, exist_ok=True)
 
-        img = cv2.imread(out_path)
-        if img is not None:
-            processed_images_dict[name_no_ext] = img
+#     char_output_folder = os.path.join(head_swap_folder, character_name)
+#     os.makedirs(char_output_folder, exist_ok=True)
 
-        if HEAD_SWAP_DELAY and HEAD_SWAP_DELAY > 0:
-            time.sleep(HEAD_SWAP_DELAY)
+#     api_images_folder = os.path.join(story_folder, "api_images")
+#     normal_images_folder = os.path.join(story_folder, "normal_images")
 
-    # Interactive refine BEFORE PDF (infinite attempts)
-    if api_map:
-        _interactive_refine_before_pdf(api_map=api_map, face_image_path=character_image_path)
+#     api_images = [f for f in os.listdir(api_images_folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))] if os.path.exists(api_images_folder) else []
+#     normal_images = [f for f in os.listdir(normal_images_folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))] if os.path.exists(normal_images_folder) else []
 
-        # Reload updated outputs
-        for slide_key, meta in api_map.items():
-            outp = meta["out"]
-            if os.path.exists(outp):
-                img = cv2.imread(outp)
-                if img is not None:
-                    processed_images_dict[slide_key] = img
+#     all_images = sorted(api_images + normal_images)
+#     if not all_images:
+#         return None, None
 
-    _clear_single_attempt_env()
-    return (processed_images_dict, original_dims_dict) if processed_images_dict else (None, None)
+#     processed_images_dict = {}
+#     original_dims_dict = {}
+
+#     api_map = {}
+
+#     print(f"\n📊 Total images: {len(all_images)} | API: {len(api_images)} | Normal: {len(normal_images)}")
+
+#     for filename in all_images:
+#         name_no_ext = os.path.splitext(filename)[0]
+#         out_path = os.path.join(char_output_folder, f"{name_no_ext}.jpg")
+
+#         is_api = filename in api_images
+#         src_path = os.path.join(api_images_folder if is_api else normal_images_folder, filename)
+
+#         dims = get_image_dimensions(src_path)
+#         if dims:
+#             orig_w, orig_h = dims
+#             if orig_w and orig_h:
+#                 original_dims_dict[name_no_ext] = (orig_w, orig_h)
+
+#         if is_api:
+#             api_map[name_no_ext] = {"scene": src_path, "out": out_path}
+
+#         # reuse if already exists
+#         if os.path.exists(out_path):
+#             img = cv2.imread(out_path)
+#             if img is not None:
+#                 processed_images_dict[name_no_ext] = img
+#             continue
+
+#         # Normal image: copy as-is
+#         if not is_api:
+#             img = cv2.imread(src_path)
+#             if img is not None:
+#                 cv2.imwrite(out_path, img)
+#                 processed_images_dict[name_no_ext] = img
+#             continue
+
+#         # API image: batch attempt 1
+#         print(f"\n🧩 Generating (batch attempt_1): {filename}")
+#         _set_single_attempt_env(1)
+
+#         cand = perform_head_swap(
+#             target_image_path=src_path,
+#             face_image_path=character_image_path,
+#             output_filename=out_path,
+#             face_url_cached=None,
+#         )
+
+#         if cand and os.path.exists(cand):
+#             shutil.copyfile(cand, out_path)
+#             _ensure_same_dims_as_original(src_path, out_path)
+
+#         img = cv2.imread(out_path)
+#         if img is not None:
+#             processed_images_dict[name_no_ext] = img
+
+#         if HEAD_SWAP_DELAY and HEAD_SWAP_DELAY > 0:
+#             time.sleep(HEAD_SWAP_DELAY)
+
+#     # Interactive refine BEFORE PDF (infinite attempts)
+#     if api_map:
+#         _interactive_refine_before_pdf(api_map=api_map, face_image_path=character_image_path)
+
+#         # Reload updated outputs
+#         for slide_key, meta in api_map.items():
+#             outp = meta["out"]
+#             if os.path.exists(outp):
+#                 img = cv2.imread(outp)
+#                 if img is not None:
+#                     processed_images_dict[slide_key] = img
+
+#     _clear_single_attempt_env()
+#     return (processed_images_dict, original_dims_dict) if processed_images_dict else (None, None)
+
+
+
