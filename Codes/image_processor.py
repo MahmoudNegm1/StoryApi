@@ -438,6 +438,7 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
                 os.environ["SEGMIND_INTERACTIVE"] = "0"
                 os.environ["SEGMIND_SINGLE_ATTEMPT"] = "1"
                 os.environ["SEGMIND_ATTEMPT_INDEX"] = "1"
+                os.environ["SEGMIND_NO_TRY_FILES"] = "1"
 
                 preview = perform_head_swap(
                     target_image_path=src_path,
@@ -449,6 +450,7 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
                     out_path = preview
 
                 os.environ["SEGMIND_SINGLE_ATTEMPT"] = "0"
+                os.environ["SEGMIND_NO_TRY_FILES"] = "0"
                 os.environ.pop("SEGMIND_ATTEMPT_INDEX", None)
             else:
                 shutil.copyfile(src_path, out_path)

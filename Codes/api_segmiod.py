@@ -60,6 +60,10 @@ def _get_attempt_index_from_env() -> int:
     return 1
 
 
+def _no_try_files() -> bool:
+    return os.getenv("SEGMIND_NO_TRY_FILES", "0").strip().lower() in ("1", "true", "yes", "y")
+
+
 def _get_max_attempts_non_interactive(default: int = 8) -> int:
     v = (os.getenv("SEGMIND_MAX_ATTEMPTS", "") or "").strip()
     if v.isdigit():
@@ -300,7 +304,7 @@ def perform_head_swap(
         # ---------------------------
         if _is_single_attempt():
             attempt_num = _get_attempt_index_from_env()
-            preview_path = f"{base_name}_try{attempt_num}{base_ext}"
+            preview_path = output_filename if _no_try_files() else f"{base_name}_try{attempt_num}{base_ext}"
             attempt_seed = seed_base + (attempt_num - 1)
 
             print(f"\n🚀 Single Attempt {attempt_num} (faceswap-v5)")

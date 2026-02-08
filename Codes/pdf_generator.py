@@ -68,4 +68,3 @@ def create_pdf_from_images(images_list, output_path, use_parallel=None):
     except Exception as e:
         print(f"ERROR: Failed to create PDF - {e}")
         return False
-
