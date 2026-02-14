@@ -94,6 +94,7 @@ TEMP_UPLOADS.mkdir(parents=True, exist_ok=True)
 TEMP_HEAD_SWAP.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".webp"}
+FORCE_HTTPS_URLS = os.environ.get("FORCE_HTTPS_URLS", "1").strip().lower() in ("1", "true", "yes")
 
 
 # --------------------------------------------------
@@ -110,6 +111,32 @@ if QT_APP is None:
 def _safe_quote_path(p: str) -> str:
     # keep : / \ unescaped (Windows paths)
     return quote(p, safe=":/\\")  # NOTE: still encodes spaces etc.
+
+def _resolve_input_path(path_str: str) -> Path:
+    p = Path(path_str)
+    if not p.is_absolute():
+        p = (BASE_DIR_PATH / p).resolve()
+    else:
+        p = p.resolve()
+    return p
+
+def _public_base_url(request: Request) -> str:
+    env_base = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "").strip()
+    if env_base:
+        if FORCE_HTTPS_URLS and env_base.lower().startswith("http://"):
+            env_base = "https://" + env_base[7:]
+        return env_base.rstrip("/")
+
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+
+    if FORCE_HTTPS_URLS:
+        proto = "https"
+
+    return f"{proto}://{host}"
+
+def _file_url(request: Request, file_path: str) -> str:
+    return f"{_public_base_url(request)}/file?path={_safe_quote_path(file_path)}"
 
 
 def _assert_under_base_dir(p: Path) -> None:
@@ -254,8 +281,8 @@ def _clear_single_attempt_env() -> None:
 # /file (safe)
 # --------------------------------------------------
 @app.get("/file")
-def get_file(path: str = Query(..., description="Absolute file path on server")):
-    p = Path(path).resolve()
+def get_file(path: str = Query(..., description="Absolute or relative file path under server base dir")):
+    p = _resolve_input_path(path)
     _assert_under_base_dir(p)
 
     if not p.exists() or not p.is_file():
@@ -270,7 +297,7 @@ def get_file(path: str = Query(..., description="Absolute file path on server"))
 # --------------------------------------------------
 @app.post("/delete-file")
 async def delete_file(path: str = Form(...)):
-    p = Path(path).resolve()
+    p = _resolve_input_path(path)
     _assert_under_base_dir(p)
 
     if not p.exists() or not p.is_file():
@@ -309,8 +336,77 @@ def _read_meta(meta_path: Path) -> dict:
 def _write_meta(meta_path: Path, data: dict) -> None:
     meta_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
+def _extract_story_context_from_path(p: Path) -> Tuple[Optional[str], Optional[str], Optional[Path]]:
+    parts = p.parts
+    for i, part in enumerate(parts):
+        if part.lower() == "stories" and i + 2 < len(parts):
+            gender_folder = parts[i + 1]
+            story_code = parts[i + 2]
+            story_folder = Path(*parts[: i + 3])
+            return gender_folder, story_code, story_folder
+    return None, None, None
+
+def _find_session_folder(slide_path: Path) -> Optional[Path]:
+    parts = slide_path.parts
+    for i, part in enumerate(parts):
+        if part.lower() == "head_swap" and i + 1 < len(parts) - 1:
+            return Path(*parts[: i + 2])
+    return None
+
+def _resolve_face_image_for_slide(slide_path: Path) -> Optional[str]:
+    session_folder = _find_session_folder(slide_path)
+    meta: Dict[str, Any] = {}
+
+    if session_folder:
+        meta_path = session_folder / "meta.json"
+        if meta_path.exists():
+            meta = _read_meta(meta_path) or {}
+
+        meta_face = meta.get("character_path") or meta.get("face_path") or meta.get("character_image")
+        if meta_face:
+            try:
+                face_p = _resolve_input_path(str(meta_face))
+                _assert_under_base_dir(face_p)
+                if face_p.exists():
+                    return str(face_p)
+            except Exception:
+                pass
+
+    session_name = session_folder.name if session_folder else ""
+    gender_folder, _, _ = _extract_story_context_from_path(slide_path)
+
+    if session_name.startswith("default_") and gender_folder:
+        target_stem = session_name.replace("default_", "", 1)
+        char_dir = (BASE_DIR_PATH / "Characters" / gender_folder).resolve()
+        for ext in ALLOWED_EXT:
+            cand = char_dir / f"{target_stem}{ext}"
+            if cand.exists():
+                return str(cand.resolve())
+        # fallback: first available character
+        default_path, _ = get_default_character(str(char_dir))
+        if default_path:
+            return default_path
+
+    if session_name:
+        temp_dir = (TEMP_UPLOADS / session_name).resolve()
+        if temp_dir.exists() and temp_dir.is_dir():
+            for p in temp_dir.iterdir():
+                if _is_image_file(p):
+                    return str(p.resolve())
+
+    gender = (meta.get("gender") or "").lower().strip()
+    if gender in ("male", "female"):
+        gender_dir = "Boys" if gender == "male" else "Girls"
+        char_dir = (BASE_DIR_PATH / "Characters" / gender_dir).resolve()
+        default_path, _ = get_default_character(str(char_dir))
+        if default_path:
+            return default_path
+
+    return None
+
 @app.post("/head-swap")
 async def head_swap_only(
+    request: Request,
     gender: str = Form(...),
     story_code: str = Form(...),
     character_image: UploadFile | None = File(None),
@@ -346,6 +442,7 @@ async def head_swap_only(
         "story_code": story_code,
         "character_name": character_name,
         "face_hash": face_hash,
+        "character_path": character_path,
     }
 
     # ---------- cache check ----------
@@ -356,12 +453,14 @@ async def head_swap_only(
         images = [{
             "name": p.stem,
             "path": str(p.resolve()),
-            "url": f"/file?path={_safe_quote_path(str(p.resolve()))}",
+            "url": _file_url(request, str(p.resolve())),
         } for p in existing_imgs]
 
         return JSONResponse({
             "status": "success",
             "session": session,
+            "ImageFolder": str(out_dir),
+            "image_folder": str(out_dir),
             "count": len(images),
             "images": images,
             "cached": True,
@@ -408,7 +507,7 @@ async def head_swap_only(
             images.append({
                 "name": Path(saved_path).stem,
                 "path": saved_path,
-                "url": f"/file?path={_safe_quote_path(saved_path)}",
+                "url": _file_url(request, saved_path),
             })
 
     # write meta (after success)
@@ -417,6 +516,8 @@ async def head_swap_only(
     return JSONResponse({
         "status": "success",
         "session": session,
+        "ImageFolder": str(out_dir),
+        "image_folder": str(out_dir),
         "count": len(images),
         "images": images,
         "cached": False
@@ -427,6 +528,7 @@ async def head_swap_only(
 # --------------------------------------------------
 @app.get("/head-swap/list")
 def list_headswap_images(
+    request: Request,
     gender: str = Query(...),
     story_code: str = Query(...),
     session: str = Query(...),
@@ -448,7 +550,7 @@ def list_headswap_images(
                 {
                     "name": pp.stem,
                     "path": str(pp),
-                    "url": f"/file?path={_safe_quote_path(str(pp))}",
+                    "url": _file_url(request, str(pp)),
                 }
             )
 
@@ -461,22 +563,23 @@ def list_headswap_images(
 @app.post("/regenerate-slide")
 async def regenerate_slide(
     request: Request,
-    slide_path: str = Form(...),
-    source_scene_path: Optional[str] = Form(None),
-    face_image: UploadFile | None = File(None),
+    path: Optional[str] = Form(None),
+    slide_path: Optional[str] = Form(None),
 ):
+    slide_path = (path or slide_path or "").strip()
+    if not slide_path:
+        raise HTTPException(400, "path is required")
+
     client_host = request.client.host if request.client else "unknown"
     logger.info(
-        "Regenerate request: %s %s client=%s slide_path=%s source_scene_path=%s face_image=%s",
+        "Regenerate request: %s %s client=%s slide_path=%s",
         request.method,
         request.url.path,
         client_host,
         slide_path,
-        source_scene_path,
-        face_image.filename if face_image else None,
     )
 
-    slide_path_p = Path(slide_path).resolve()
+    slide_path_p = _resolve_input_path(slide_path)
     _assert_under_base_dir(slide_path_p)
 
     if not slide_path_p.exists():
@@ -486,23 +589,8 @@ async def regenerate_slide(
     name_no_ext = slide_path_p.stem
     base_name = name_no_ext.split("_try")[0] if "_try" in name_no_ext else name_no_ext
 
-    # choose target output folder
+    # choose target output folder (default: same folder)
     target_folder = folder
-    if face_image:
-        try:
-            # if the slide is already under Head_swap/<image_name>/ keep same folder
-            in_headswap = any(p.name.lower() == "head_swap" for p in slide_path_p.parents)
-            if in_headswap:
-                target_folder = folder
-            else:
-                story_folder = _find_story_folder_from_slide(str(slide_path_p))
-                if story_folder:
-                    face_stem = Path(face_image.filename or "").stem
-                    if face_stem:
-                        target_folder = (story_folder / "Head_swap" / face_stem).resolve()
-                        target_folder.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            target_folder = folder
 
     # next try index (based on target folder)
     existing_files = [f.name for f in target_folder.iterdir() if f.is_file() and f.name.startswith(base_name)]
@@ -517,36 +605,31 @@ async def regenerate_slide(
 
     new_try_path = (target_folder / f"{base_name}_try{next_try}.jpg").resolve()
 
-    if face_image:
-        face_path = save_uploaded_file(face_image, TEMP_UPLOADS)
+    face_path = _resolve_face_image_for_slide(slide_path_p)
+    if not face_path:
+        raise HTTPException(400, "Face image not found for this slide/session. Run /head-swap first.")
 
-        if source_scene_path:
-            scene_path = Path(source_scene_path).resolve()
-        else:
-            scene_path = _find_source_scene_for_slide(str(slide_path_p))
+    scene_path = _find_source_scene_for_slide(str(slide_path_p))
+    if not scene_path or not scene_path.exists():
+        raise HTTPException(400, "Source scene image not found for regeneration")
 
-        if not scene_path or not scene_path.exists():
-            raise HTTPException(400, "Source scene image not found for regeneration")
+    _assert_under_base_dir(scene_path)
 
-        _assert_under_base_dir(scene_path)
+    _set_single_attempt_env(next_try)
+    try:
+        preview_path = perform_head_swap(
+            target_image_path=str(scene_path),
+            face_image_path=face_path,
+            output_filename=str(new_try_path),
+            face_url_cached=None,
+        )
+    finally:
+        _clear_single_attempt_env()
 
-        _set_single_attempt_env(next_try)
-        try:
-            preview_path = perform_head_swap(
-                target_image_path=str(scene_path),
-                face_image_path=face_path,
-                output_filename=str(new_try_path),
-                face_url_cached=None,
-            )
-        finally:
-            _clear_single_attempt_env()
-
-        if preview_path and Path(preview_path).exists():
-            new_try_path = Path(preview_path).resolve()
-        elif not new_try_path.exists():
-            raise HTTPException(500, "Head-swap regeneration failed")
-    else:
-        shutil.copyfile(str(slide_path_p), str(new_try_path))
+    if preview_path and Path(preview_path).exists():
+        new_try_path = Path(preview_path).resolve()
+    elif not new_try_path.exists():
+        raise HTTPException(500, "Head-swap regeneration failed")
 
     old_path = str(slide_path_p)
     new_path = str(new_try_path)
@@ -571,10 +654,12 @@ async def regenerate_slide(
             "status": "success",
             "base_name": base_name,
             "try_index": next_try,
+            "path": new_path,
+            "url": _file_url(request, new_path),
             "old_path": old_path,
             "new_path": new_path,
-            "old_url": f"/file?path={_safe_quote_path(old_path)}",
-            "new_url": f"/file?path={_safe_quote_path(new_path)}",
+            "old_url": _file_url(request, old_path),
+            "new_url": _file_url(request, new_path),
         }
     )
 
@@ -920,16 +1005,23 @@ def _find_story_folder(images_dir: Path) -> Optional[Path]:
 
 @app.post("/generate-story/pdf")
 async def generate_story_pdf(
+    request: Request,
     language: str = Form(...),
     user_name: str = Form(...),
-    images_folder: str = Form(...),
+    images_folder: Optional[str] = Form(None),
+    ImageFolder: Optional[str] = Form(None),
+    image_folder: Optional[str] = Form(None),
 ):
     try:
         t0 = time.perf_counter()
         lang = (language or "").lower().strip()
         user_name = (user_name or "").strip()
 
-        root = Path(images_folder).resolve()
+        images_folder = (images_folder or ImageFolder or image_folder or "").strip()
+        if not images_folder:
+            return _json_error(400, "images_folder is required")
+
+        root = _resolve_input_path(images_folder)
         _assert_under_base_dir(root)
 
         images_dir = _pick_images_dir(root)
@@ -1116,7 +1208,7 @@ async def generate_story_pdf(
                 "status": "success",
                 "pdf_path": str(pdf_path),
                 "pdf_name": safe_pdf_name,
-                "pdf_url": f"/file?path={_safe_quote_path(str(pdf_path))}",
+                "pdf_url": _file_url(request, str(pdf_path)),
                 "story_folder": str(story_folder),
                 "images_dir_used": str(images_dir),
                 "text_file_used": str(text_file),
