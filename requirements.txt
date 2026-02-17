@@ -6,3 +6,7 @@ Pillow
 flask
 gunicorn
 
+
+requests
+opencv-python-headless
+pillow

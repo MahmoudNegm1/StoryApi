@@ -34,7 +34,7 @@ from PIL import Image
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query, Request, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
@@ -155,6 +155,75 @@ def _is_try_file(p: Path) -> bool:
 
 def _json_error(status_code: int, msg: str):
     return JSONResponse({"status": "error", "message": msg}, status_code=status_code)
+
+
+# --------------------------------------------------
+# Background Task: Head Swap Processing
+# --------------------------------------------------
+def _run_head_swap_background(
+    story_folder: str,
+    character_image_path: str,
+    character_name: str,
+    out_dir: Path,
+    meta_path: Path,
+    expected_meta: dict,
+):
+    """
+    Background task that runs head swap processing.
+    Saves results to out_dir and writes meta.json when complete.
+    """
+    import logging
+    
+    logger = logging.getLogger("head_swap_background")
+    logger.info(f"Starting background head swap for {character_name}")
+    
+    try:
+        from Codes.image_processor import process_head_swap
+        
+        processed_slides = process_head_swap(
+            clean_images_folder=None,
+            character_image_path=character_image_path,
+            character_name=character_name,
+            story_folder=story_folder,
+        )
+        
+        if not isinstance(processed_slides, list):
+            logger.error(f"process_head_swap returned {type(processed_slides)}, expected list")
+            return
+        
+        # Save processed images to output directory
+        for slide in processed_slides:
+            if not isinstance(slide, dict):
+                continue
+            
+            slide_name = slide.get("name") or "slide_unknown"
+            pil_img = slide.get("image")
+            existing_path = slide.get("path")
+            saved_path = None
+            
+            if isinstance(pil_img, Image.Image):
+                saved_path = str((out_dir / f"{slide_name}.jpg").resolve())
+                pil_img.save(saved_path, format="JPEG", quality=95)
+                logger.info(f"Saved processed image: {saved_path}")
+            
+            elif existing_path and Path(existing_path).exists():
+                src = Path(existing_path).resolve()
+                dst = (out_dir / src.name).resolve()
+                if src != dst:
+                    shutil.copyfile(str(src), str(dst))
+                saved_path = str(dst)
+                logger.info(f"Copied existing image: {saved_path}")
+        
+        # Write meta after success
+        import json
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(expected_meta, f, ensure_ascii=False, indent=2)
+        
+        logger.info(f"Background head swap completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Background head swap failed: {e}")
+        logger.error(traceback.format_exc())
 
 
 def build_pdf_filename(pdf_name: str, language: str, user_name: str) -> str:
@@ -407,6 +476,7 @@ def _resolve_face_image_for_slide(slide_path: Path) -> Optional[str]:
 @app.post("/head-swap")
 async def head_swap_only(
     request: Request,
+    background_tasks: BackgroundTasks,
     gender: str = Form(...),
     story_code: str = Form(...),
     character_image: UploadFile | None = File(None),
@@ -466,62 +536,32 @@ async def head_swap_only(
             "cached": True,
         })
 
-    # ---------- regenerate ----------
+    # ---------- regenerate in background ----------
     # (اختياري) لو فيه صور قديمة من session غلط، امسحها
     for p in existing_imgs:
         try: p.unlink()
         except: pass
 
-    processed_slides = process_head_swap(
-        clean_images_folder=None,
+    # Schedule background task to process head swap
+    background_tasks.add_task(
+        _run_head_swap_background,
+        story_folder=str(story_folder),
         character_image_path=character_path,
         character_name=character_name,
-        story_folder=story_folder,
+        out_dir=out_dir,
+        meta_path=meta_path,
+        expected_meta=expected_meta,
     )
 
-    if not isinstance(processed_slides, list):
-        raise HTTPException(status_code=500, detail="process_head_swap did not return a list.")
-
-    images = []
-    for slide in processed_slides:
-        if not isinstance(slide, dict):
-            continue
-
-        slide_name = slide.get("name") or "slide_unknown"
-        pil_img = slide.get("image")
-        existing_path = slide.get("path")
-        saved_path = None
-
-        if isinstance(pil_img, Image.Image):
-            saved_path = str((out_dir / f"{slide_name}.jpg").resolve())
-            pil_img.save(saved_path, format="JPEG", quality=95)
-
-        elif existing_path and Path(existing_path).exists():
-            src = Path(existing_path).resolve()
-            dst = (out_dir / src.name).resolve()
-            if src != dst:
-                shutil.copyfile(str(src), str(dst))
-            saved_path = str(dst)
-
-        if saved_path and not _is_try_file(Path(saved_path)):
-            images.append({
-                "name": Path(saved_path).stem,
-                "path": saved_path,
-                "url": _file_url(request, saved_path),
-            })
-
-    # write meta (after success)
-    _write_meta(meta_path, expected_meta)
-
+    # Return immediately with processing status
     return JSONResponse({
-        "status": "success",
+        "status": "processing",
         "session": session,
+        "message": "Head swap processing started in background",
         "ImageFolder": str(out_dir),
         "image_folder": str(out_dir),
-        "count": len(images),
-        "images": images,
-        "cached": False
     })
+
 
 # --------------------------------------------------
 # /head-swap/list

@@ -108,9 +108,14 @@ def _upload_to_segmind_storage(image_path: str, retries: int = 3, wait_sec: int 
         return None
 
     os.environ["SEGMIND_API_KEY"] = SEGMIND_API_KEY
+    
+    # DEBUG: Log API key status
+    print(f"   🔍 DEBUG: Segmind API Key present: {bool(SEGMIND_API_KEY)}")
+    print(f"   🔍 DEBUG: API Key length: {len(SEGMIND_API_KEY) if SEGMIND_API_KEY else 0}")
 
     try:
         import segmind  # pip install segmind
+        print(f"   🔍 DEBUG: segmind package imported successfully")
     except Exception as e:
         print("   ❌ segmind package not installed. Run: pip install segmind")
         print(f"   📄 Import error: {e}")
@@ -120,8 +125,10 @@ def _upload_to_segmind_storage(image_path: str, retries: int = 3, wait_sec: int 
         try:
             print(f"   ⬆️  Upload attempt {attempt}/{retries}: {os.path.basename(image_path)}")
             result = segmind.files.upload(image_path)
+            print(f"   🔍 DEBUG: Segmind upload result: {result}")
             urls = (result or {}).get("file_urls") or []
             if urls:
+                print(f"   🔍 DEBUG: Uploaded URL: {urls[0][:50]}...")
                 return urls[0]
             print("   ❌ Segmind upload returned no file_urls")
         except Exception as e:
@@ -235,7 +242,25 @@ def _call_faceswap_v5(target_url: str, face_url: str, seed: int, timeout: int) -
         "image_format": "png",
         "quality": 95,
     }
-    return requests.post(SEGMIND_FACESWAP_V5_URL, headers=headers, json=data, timeout=timeout)
+    
+    # DEBUG: Log API call details
+    print(f"   🔍 DEBUG: Calling Segmind faceswap-v5 API")
+    print(f"   🔍 DEBUG: Target URL: {target_url[:50] if target_url else 'None'}...")
+    print(f"   🔍 DEBUG: Face URL: {face_url[:50] if face_url else 'None'}...")
+    print(f"   🔍 DEBUG: Seed: {seed}, Timeout: {timeout}")
+    
+    try:
+        resp = requests.post(SEGMIND_FACESWAP_V5_URL, headers=headers, json=data, timeout=timeout)
+        print(f"   🔍 DEBUG: Response status: {resp.status_code}")
+        if resp.status_code != 200:
+            print(f"   🔍 DEBUG: Response text: {resp.text[:500]}")
+        return resp
+    except requests.exceptions.Timeout:
+        print(f"   ❌ DEBUG: Request timeout after {timeout} seconds")
+        raise
+    except Exception as e:
+        print(f"   ❌ DEBUG: Request exception: {e}")
+        raise
 
 
 # ---------------------------
@@ -254,6 +279,12 @@ def perform_head_swap(
       - In normal mode: final output_filename path if accepted/saved, else None (only if all failed)
       - In single attempt mode: preview path (NOT final), or None
     """
+    print(f"\n=== DEBUG: Starting head swap ===")
+    print(f"   DEBUG: target_image_path: {target_image_path}")
+    print(f"   DEBUG: face_image_path: {face_image_path}")
+    print(f"   DEBUG: output_filename: {output_filename}")
+    print(f"   DEBUG: face_url_cached: {face_url_cached}")
+    
     try:
         if not os.path.exists(target_image_path):
             print(f"   ❌ Target not found: {target_image_path}")
@@ -267,6 +298,7 @@ def perform_head_swap(
             base_ext = ".png"
 
         seed_base = SEGMIND_SEED if SEGMIND_SEED is not None else 42
+        print(f"   DEBUG: seed_base: {seed_base}")
 
         # ---------------------------
         # Load cache (urls)
