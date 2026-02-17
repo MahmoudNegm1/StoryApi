@@ -8,6 +8,7 @@ What this module does:
 - Text overlay (sequential or parallel)
 - Resolution handling
 
+
 IMPORTANT:
 - Uses api_segmiod.py (note the name) and its fixed signature:
     perform_head_swap(target_image_path, face_image_path, output_filename, face_url_cached=None)
@@ -424,7 +425,7 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
 
     output_list = []
 
-    for filename in all_images:
+    for idx, filename in enumerate(all_images):
         name_no_ext = os.path.splitext(filename)[0]
         out_path = os.path.join(char_output_folder, f"{name_no_ext}.jpg")
 
@@ -435,19 +436,34 @@ def process_head_swap(clean_images_folder, character_image_path, character_name,
         if not os.path.exists(out_path):
             if is_api:
                 from Codes.api_segmiod import perform_head_swap
+                
+                # Add delay between API calls to avoid rate limiting
+                if idx > 0:
+                    time.sleep(2)  # 2 second delay between API calls
+                
                 os.environ["SEGMIND_INTERACTIVE"] = "0"
                 os.environ["SEGMIND_SINGLE_ATTEMPT"] = "1"
                 os.environ["SEGMIND_ATTEMPT_INDEX"] = "1"
                 os.environ["SEGMIND_NO_TRY_FILES"] = "1"
 
-                preview = perform_head_swap(
-                    target_image_path=src_path,
-                    face_image_path=character_image_path,
-                    output_filename=out_path,
-                    face_url_cached=None,
-                )
-                if preview and os.path.exists(preview):
-                    out_path = preview
+                preview = None
+                # Retry logic for API failures (rate limiting)
+                for attempt in range(3):
+                    try:
+                        preview = perform_head_swap(
+                            target_image_path=src_path,
+                            face_image_path=character_image_path,
+                            output_filename=out_path,
+                            face_url_cached=None,
+                        )
+                        if preview and os.path.exists(preview):
+                            out_path = preview
+                            break  # Success, exit retry loop
+                    except Exception as e:
+                        print(f"   ⚠️  Attempt {attempt + 1}/3 failed for {filename}: {e}")
+                        if attempt < 2:
+                            time.sleep(5)  # 5 second delay before retry
+                        continue
 
                 os.environ["SEGMIND_SINGLE_ATTEMPT"] = "0"
                 os.environ["SEGMIND_NO_TRY_FILES"] = "0"
