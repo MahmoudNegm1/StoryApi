@@ -99,10 +99,21 @@ FORCE_HTTPS_URLS = os.environ.get("FORCE_HTTPS_URLS", "1").strip().lower() in ("
 
 # --------------------------------------------------
 # Qt (PySide6) - MUST be single instance
+# For headless server: set QT_QPA_PLATFORM=offscreen before running
 # --------------------------------------------------
+import os
+
+# Auto-detect headless environment and set Qt platform
+if os.environ.get('QT_QPA_PLATFORM') is None:
+    # Check if we're in a headless environment
+    if os.environ.get('DISPLAY') is None and os.name != 'nt':
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        print("⚠️  Headless environment detected - using offscreen Qt platform")
+
 QT_APP = QApplication.instance()
 if QT_APP is None:
-    QT_APP = QApplication([])
+    # For offscreen rendering, we may need to pass empty arguments
+    QT_APP = QApplication(['-platform', 'offscreen'] if os.environ.get('QT_QPA_PLATFORM') == 'offscreen' else [])
 
 
 # --------------------------------------------------
